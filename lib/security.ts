@@ -69,14 +69,22 @@ export function clearAdminCookieHeader(request: Request) {
 }
 
 export async function consumeRateLimit(request: Request, scope: string, limit: number, windowSeconds: number) {
-  const source = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'local';
-  const keyHash = createHash('sha256').update(`${scope}:${source}:${secret()}`).digest('hex');
-  const { data, error } = await getSupabaseAdmin().rpc('consume_api_rate_limit', {
-    p_scope: scope,
-    p_key_hash: keyHash,
-    p_limit: limit,
-    p_window_seconds: windowSeconds,
-  });
-  if (error) throw new Error(error.message);
-  return data === true;
+  try {
+    const source = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'local';
+    const keyHash = createHash('sha256').update(`${scope}:${source}:${secret()}`).digest('hex');
+    const { data, error } = await getSupabaseAdmin().rpc('consume_api_rate_limit', {
+      p_scope: scope,
+      p_key_hash: keyHash,
+      p_limit: limit,
+      p_window_seconds: windowSeconds,
+    });
+    if (error) {
+      console.warn(`Rate limit RPC failed (${scope}): ${error.message} — allowing request.`);
+      return true;
+    }
+    return data === true;
+  } catch (err) {
+    console.warn(`Rate limit unavailable (${scope}): ${err instanceof Error ? err.message : err} — allowing request.`);
+    return true;
+  }
 }
