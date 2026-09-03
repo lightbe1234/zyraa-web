@@ -1273,8 +1273,9 @@ function CheckoutView({
           payment,
         }),
       });
-      if (!res.ok) throw new Error('Order could not be created');
-      const order = (await res.json()) as Order;
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Order could not be created');
+      const order = result as Order;
       localStorage.setItem('zyra-last-order', JSON.stringify(order));
       onComplete();
       location.href = `/order-confirmation/${order.token}`;
