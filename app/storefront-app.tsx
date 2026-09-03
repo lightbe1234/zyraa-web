@@ -9,10 +9,13 @@ import {
   ChevronRight,
   CircleUserRound,
   CreditCard,
+  Eye,
   Heart,
   Menu,
   Minus,
   PackageCheck,
+  Pencil,
+  Plus,
   Search,
   ShieldCheck,
   ShoppingBag,
@@ -22,8 +25,7 @@ import {
 import {
   categories,
   money,
-  productBySlug,
-  products,
+  products as seededProducts,
   type Product,
 } from '@/lib/catalog';
 
@@ -31,14 +33,24 @@ type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
   token: string;
   number: string;
-  email: string;
-  phone: string;
-  items: CartItem[];
+  customer: { firstName: string; lastName: string; email: string; phone: string };
+  delivery: { address: string; city: string; province: string; postal: string; note: string };
+  items: Array<CartItem & { unitPrice: number; lineTotal: number }>;
+  subtotal: number;
+  shipping: number;
   total: number;
   payment: string;
   status: string;
   createdAt: string;
 };
+type StoreSettings = {
+  storeName: string;
+  supportEmail: string;
+  freeShippingThreshold: number;
+  flatShipping: number;
+  bankTransferInstructions: string;
+};
+type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 const announcements = [
   'Free shipping across Pakistan over Rs. 4,999',
   '14-day size exchange on unworn pieces',
@@ -71,6 +83,7 @@ function useCountdown() {
 
 export default function StorefrontApp({ path }: { path: string }) {
   const [cart, setCart] = useState<CartItem[]>([]),
+    [catalog, setCatalog] = useState<Product[]>(seededProducts),
     [ready, setReady] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
@@ -83,6 +96,10 @@ export default function StorefrontApp({ path }: { path: string }) {
       setCart(JSON.parse(localStorage.getItem('zyra-cart') || '[]'));
     } catch {}
     setReady(true);
+    fetch('/api/products')
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((value: Product[]) => setCatalog(value))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     if (ready) localStorage.setItem('zyra-cart', JSON.stringify(cart));
@@ -136,7 +153,8 @@ export default function StorefrontApp({ path }: { path: string }) {
     );
   const count = cart.reduce((n, item) => n + item.qty, 0);
   const subtotal = cart.reduce(
-    (sum, item) => sum + (productBySlug(item.slug)?.price || 0) * item.qty,
+    (sum, item) =>
+      sum + (catalog.find((product) => product.slug === item.slug)?.price || 0) * item.qty,
     0,
   );
   const storefront = !path.startsWith('/admin') && path !== '/checkout';
@@ -174,19 +192,20 @@ export default function StorefrontApp({ path }: { path: string }) {
         </>
       )}
       {path === '/' ? (
-        <Home />
+        <Home catalog={catalog} />
       ) : path.startsWith('/products/') ? (
-        <ProductView slug={path.split('/')[2]} add={add} />
+        <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} />
       ) : path === '/collections' ||
         path.startsWith('/collections/') ||
         path === '/search' ? (
-        <CatalogView path={path} />
+        <CatalogView path={path} catalog={catalog} />
       ) : path === '/cart' ? (
-        <CartView cart={cart} subtotal={subtotal} update={update} />
+        <CartView cart={cart} subtotal={subtotal} update={update} catalog={catalog} />
       ) : path === '/checkout' ? (
         <CheckoutView
           cart={cart}
           subtotal={subtotal}
+          catalog={catalog}
           onComplete={() => setCart([])}
         />
       ) : path.startsWith('/order-confirmation/') ? (
@@ -198,18 +217,19 @@ export default function StorefrontApp({ path }: { path: string }) {
       ) : path === '/admin/login' ? (
         <AdminLogin />
       ) : path.startsWith('/admin') ? (
-        <AdminView />
+        <AdminView catalog={catalog} onCatalogChange={setCatalog} />
       ) : (
         <InfoPage path={path} />
       )}
       {storefront && <Footer />}
       <Drawer open={menuOpen} close={() => setMenuOpen(false)} />
-      <SearchPanel open={searchOpen} close={() => setSearchOpen(false)} />
+      <SearchPanel open={searchOpen} close={() => setSearchOpen(false)} catalog={catalog} />
       <CartPanel
         open={cartOpen}
         close={() => setCartOpen(false)}
         cart={cart}
         subtotal={subtotal}
+        catalog={catalog}
       />
       {toast && (
         <div className="toast" role="status">
@@ -325,15 +345,23 @@ function Drawer({ open, close }: { open: boolean; close: () => void }) {
   );
 }
 
-function SearchPanel({ open, close }: { open: boolean; close: () => void }) {
+function SearchPanel({
+  open,
+  close,
+  catalog,
+}: {
+  open: boolean;
+  close: () => void;
+  catalog: Product[];
+}) {
   const [query, setQuery] = useState('');
   const found = query.trim()
-    ? products
+    ? catalog
         .filter((p) =>
           (p.name + p.category).toLowerCase().includes(query.toLowerCase()),
         )
         .slice(0, 5)
-    : products.slice(0, 4);
+    : catalog.slice(0, 4);
   if (!open) return null;
   return (
     <div className="overlay search-overlay">
@@ -399,11 +427,13 @@ function CartPanel({
   close,
   cart,
   subtotal,
+  catalog,
 }: {
   open: boolean;
   close: () => void;
   cart: CartItem[];
   subtotal: number;
+  catalog: Product[];
 }) {
   if (!open) return null;
   return (
@@ -427,7 +457,8 @@ function CartPanel({
           <>
             <div className="mini-cart">
               {cart.map((item, i) => {
-                const p = productBySlug(item.slug)!;
+                const p = catalog.find((product) => product.slug === item.slug);
+                if (!p) return null;
                 return (
                   <div key={`${item.slug}${i}`}>
                     <img src={p.image} alt="" />
@@ -556,7 +587,7 @@ function Rail({
   );
 }
 
-function Home() {
+function Home({ catalog }: { catalog: Product[] }) {
   return (
     <main>
       <section className="hero">
@@ -578,7 +609,7 @@ function Home() {
         </div>
         <p className="hero-caption">Karachi / 24°51′N 67°00′E</p>
       </section>
-      <Rail title="Best sellers" label="Most wanted" list={products} />
+      <Rail title="Best sellers" label="Most wanted" list={catalog} />
       <section className="manifesto section-shell">
         <p className="eyebrow">ZYRA / EST. 2026</p>
         <h2>
@@ -590,10 +621,10 @@ function Home() {
       <Rail
         title="Core forms"
         label="Wardrobe architecture"
-        list={products.slice(6)}
+        list={catalog.slice(6)}
       />
       <section className="editorial-grid">
-        <a href={`/products/${products[10].slug}`}>
+        <a href={`/products/${(catalog[10] || catalog[0]).slug}`}>
           <img
             src="/campaign.jpg"
             alt="Editorial monochrome fashion portrait"
@@ -616,7 +647,7 @@ function Home() {
       <Rail
         title="Lower division"
         label="Movement pieces"
-        list={products.filter(
+        list={catalog.filter(
           (p) => p.category === 'Bottoms' || p.category === 'Essentials',
         )}
       />
@@ -709,7 +740,7 @@ function Home() {
   );
 }
 
-function CatalogView({ path }: { path: string }) {
+function CatalogView({ path, catalog }: { path: string; catalog: Product[] }) {
   const pathSlug = path.split('/')[2];
   const category = categories.find((c) => c.slug === pathSlug);
   const [availability, setAvailability] = useState('all'),
@@ -722,7 +753,7 @@ function CatalogView({ path }: { path: string }) {
       : '';
   const filtered = useMemo(
     () =>
-      products
+      catalog
         .filter(
           (p) =>
             (selected === 'all' || p.category === selected) &&
@@ -746,7 +777,7 @@ function CatalogView({ path }: { path: string }) {
                   ? Number(b.newArrival) - Number(a.newArrival)
                   : Number(b.featured) - Number(a.featured),
         ),
-    [availability, sort, selected, max, query],
+    [availability, sort, selected, max, query, catalog],
   );
   return (
     <main className="catalog-page">
@@ -857,17 +888,26 @@ function CatalogView({ path }: { path: string }) {
 function ProductView({
   slug,
   add,
+  catalog,
 }: {
   slug: string;
   add: (item: CartItem) => void;
+  catalog: Product[];
 }) {
-  const product = productBySlug(slug) || products[0];
+  const product = catalog.find((entry) => entry.slug === slug) || catalog[0];
   const [size, setSize] = useState(''),
     [color, setColor] = useState(product.colors[0]),
     [qty, setQty] = useState(1),
     [image, setImage] = useState(product.image),
     [error, setError] = useState(''),
     [chart, setChart] = useState(false);
+  useEffect(() => {
+    setSize('');
+    setColor(product.colors[0]);
+    setQty(1);
+    setImage(product.image);
+    setError('');
+  }, [product.slug]);
   const submit = (buy = false) => {
     if (!size) {
       setError('Choose a size before adding this piece.');
@@ -1059,7 +1099,7 @@ function ProductView({
         <Rail
           title="Complete the rotation"
           label="Related pieces"
-          list={products.filter((p) => p.slug !== product.slug).slice(0, 4)}
+          list={catalog.filter((p) => p.slug !== product.slug).slice(0, 4)}
         />
       </section>
     </main>
@@ -1070,10 +1110,12 @@ function CartView({
   cart,
   subtotal,
   update,
+  catalog,
 }: {
   cart: CartItem[];
   subtotal: number;
   update: (index: number, qty: number) => void;
+  catalog: Product[];
 }) {
   const [coupon, setCoupon] = useState(''),
     [applied, setApplied] = useState(false);
@@ -1090,7 +1132,8 @@ function CartView({
         <div className="bag-layout">
           <section className="bag-lines">
             {cart.map((item, i) => {
-              const p = productBySlug(item.slug)!;
+              const p = catalog.find((product) => product.slug === item.slug);
+              if (!p) return null;
               return (
                 <article key={`${item.slug}${i}`}>
                   <img src={p.image} alt={p.name} />
@@ -1186,10 +1229,12 @@ function CartView({
 function CheckoutView({
   cart,
   subtotal,
+  catalog,
   onComplete,
 }: {
   cart: CartItem[];
   subtotal: number;
+  catalog: Product[];
   onComplete: () => void;
 }) {
   const [payment, setPayment] = useState('cod'),
@@ -1218,6 +1263,13 @@ function CheckoutView({
           items: cart,
           email: data.get('email'),
           phone: data.get('phone'),
+          firstName: data.get('firstName'),
+          lastName: data.get('lastName'),
+          address: data.get('address'),
+          city: data.get('city'),
+          province: data.get('province'),
+          postal: data.get('postal'),
+          note: data.get('note'),
           payment,
         }),
       });
@@ -1390,7 +1442,7 @@ function CheckoutView({
             before your order is created.
           </p>
         </section>
-        <OrderSummary cart={cart} subtotal={subtotal} shipping={shipping} />
+        <OrderSummary cart={cart} subtotal={subtotal} shipping={shipping} catalog={catalog} />
       </form>
     </main>
   );
@@ -1400,16 +1452,19 @@ function OrderSummary({
   cart,
   subtotal,
   shipping,
+  catalog,
 }: {
   cart: CartItem[];
   subtotal: number;
   shipping: number;
+  catalog: Product[];
 }) {
   return (
     <aside className="checkout-summary">
       <h2>Order summary</h2>
       {cart.map((item, i) => {
-        const p = productBySlug(item.slug)!;
+        const p = catalog.find((product) => product.slug === item.slug);
+        if (!p) return null;
         return (
           <div className="checkout-line" key={`${item.slug}${i}`}>
             <div>
@@ -1445,21 +1500,23 @@ function OrderSummary({
 }
 
 function ConfirmationView({ token }: { token: string }) {
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<Order | null>(null),
+    [loading, setLoading] = useState(true);
   useEffect(() => {
-    try {
-      const parsed = JSON.parse(
-        localStorage.getItem('zyra-last-order') || 'null',
-      );
-      if (parsed?.token === token) setOrder(parsed);
-    } catch {}
+    fetch(`/api/orders?token=${encodeURIComponent(token)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((value: Order) => setOrder(value))
+      .catch(() => setOrder(null))
+      .finally(() => setLoading(false));
   }, [token]);
+  if (loading)
+    return <main className="confirmation"><p className="eyebrow">Order lookup</p><h1>Loading confirmation…</h1></main>;
   if (!order)
     return (
       <main className="confirmation">
         <p className="eyebrow">Order lookup</p>
         <h1>Confirmation unavailable</h1>
-        <p>This local demo keeps the latest confirmation in this browser.</p>
+        <p>That confirmation link is invalid or no longer available.</p>
         <a className="dark-button" href="/track-order">
           Track an order
         </a>
@@ -1477,7 +1534,7 @@ function ConfirmationView({ token }: { token: string }) {
         We’ve got it.
       </h1>
       <p>
-        A confirmation is ready for <b>{order.email}</b>. No real email is sent
+        A confirmation is ready for <b>{order.customer.email}</b>. No real email is sent
         in demo mode.
       </p>
       <div className="confirmation-grid">
@@ -1522,19 +1579,24 @@ function ConfirmationView({ token }: { token: string }) {
 }
 
 function TrackOrder() {
-  const [result, setResult] = useState<Order | null | false>(null);
-  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [result, setResult] = useState<Order | null | false>(null),
+    [busy, setBusy] = useState(false);
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setBusy(true);
     const form = new FormData(e.currentTarget);
-    const last = JSON.parse(localStorage.getItem('zyra-last-order') || 'null');
-    setResult(
-      last &&
-        last.number === form.get('number') &&
-        (last.email === form.get('contact') ||
-          last.phone === form.get('contact'))
-        ? last
-        : false,
-    );
+    const query = new URLSearchParams({
+      number: String(form.get('number') || ''),
+      contact: String(form.get('contact') || ''),
+    });
+    try {
+      const response = await fetch(`/api/orders?${query}`);
+      setResult(response.ok ? await response.json() : false);
+    } catch {
+      setResult(false);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <main className="simple-page">
@@ -1554,8 +1616,8 @@ function TrackOrder() {
             Email or phone
             <input required name="contact" />
           </label>
-          <button className="dark-button">
-            Track order <ArrowRight />
+          <button className="dark-button" disabled={busy}>
+            {busy ? 'Checking…' : 'Track order'} <ArrowRight />
           </button>
         </form>
         {result === false && (
@@ -1648,30 +1710,39 @@ function AccountView() {
 }
 
 function AdminLogin() {
-  const [error, setError] = useState('');
+  const [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
   return (
     <main className="admin-login">
       <a className="wordmark" href="/">
         ZYRA<span>®</span>
       </a>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          setBusy(true);
+          setError('');
           const f = new FormData(e.currentTarget);
-          if (f.get('email') && String(f.get('password')).length >= 8) {
-            sessionStorage.setItem('zyra-admin-demo', '1');
+          try {
+            const response = await fetch('/api/admin/session', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ email: f.get('email'), password: f.get('password') }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Login failed.');
             location.href = '/admin';
-          } else
-            setError(
-              'Use any valid email and at least 8 characters for this local demo.',
-            );
+          } catch (loginError) {
+            setError(loginError instanceof Error ? loginError.message : 'Login failed.');
+            setBusy(false);
+          }
         }}
       >
-        <p className="eyebrow">Operations / Demo</p>
+        <p className="eyebrow">Operations / Secure</p>
         <h1>Admin access</h1>
         <p>
-          This prototype uses an isolated demo session. Production credentials
-          are never hardcoded.
+          Sign in to manage products, inventory, orders and storefront settings.
+          Credentials remain server-side.
         </p>
         <label>
           Email
@@ -1682,38 +1753,132 @@ function AdminLogin() {
           <input name="password" required type="password" minLength={8} />
         </label>
         {error && <p className="form-error">{error}</p>}
-        <button className="dark-button">
-          Enter operations <ArrowRight />
+        <button className="dark-button" disabled={busy}>
+          {busy ? 'Starting session…' : 'Enter operations'} <ArrowRight />
         </button>
       </form>
     </main>
   );
 }
 
-function AdminView() {
-  const [allowed, setAllowed] = useState(false),
+function AdminView({
+  catalog,
+  onCatalogChange,
+}: {
+  catalog: Product[];
+  onCatalogChange: (products: Product[]) => void;
+}) {
+  const [allowed, setAllowed] = useState<boolean | null>(null),
     [tab, setTab] = useState('dashboard'),
-    [stock, setStock] = useState(
-      Object.fromEntries(products.map((p) => [p.slug, p.stock])),
-    ),
-    [saved, setSaved] = useState('');
-  useEffect(
-    () => setAllowed(sessionStorage.getItem('zyra-admin-demo') === '1'),
-    [],
-  );
+    [adminCatalog, setAdminCatalog] = useState<Product[]>(catalog),
+    [orders, setOrders] = useState<Order[]>([]),
+    [editing, setEditing] = useState<Product | null>(null),
+    [productFormOpen, setProductFormOpen] = useState(false),
+    [selectedOrder, setSelectedOrder] = useState<Order | null>(null),
+    [settings, setSettings] = useState<StoreSettings>({ storeName: 'ZYRA', supportEmail: 'hello@zyra.store', freeShippingThreshold: 499900, flatShipping: 25000, bankTransferInstructions: 'Use your order number as the payment reference.' }),
+    [sections, setSections] = useState<ContentSection[]>([]),
+    [saved, setSaved] = useState(''),
+    [adminError, setAdminError] = useState('');
+
+  const loadAdminData = async () => {
+    try {
+      const [productResponse, publicResponse, orderResponse, settingsResponse, contentResponse] = await Promise.all([
+        fetch('/api/admin/products'),
+        fetch('/api/products'),
+        fetch('/api/admin/orders'),
+        fetch('/api/admin/settings'),
+        fetch('/api/admin/content'),
+      ]);
+      if (productResponse.status === 401 || orderResponse.status === 401) {
+        sessionStorage.removeItem('zyra-admin-demo');
+        setAllowed(false);
+        return;
+      }
+      if (!productResponse.ok || !publicResponse.ok || !orderResponse.ok || !settingsResponse.ok || !contentResponse.ok) {
+        throw new Error('Admin data could not be loaded.');
+      }
+      setAdminCatalog(await productResponse.json());
+      onCatalogChange(await publicResponse.json());
+      setOrders(await orderResponse.json());
+      setSettings(await settingsResponse.json());
+      setSections(await contentResponse.json());
+    } catch (loadError) {
+      setAdminError(loadError instanceof Error ? loadError.message : 'Admin data could not be loaded.');
+    }
+  };
+
+  useEffect(() => {
+    fetch('/api/admin/session')
+      .then((response) => response.json())
+      .then((session: { authenticated: boolean }) => {
+        setAllowed(session.authenticated);
+        if (session.authenticated) void loadAdminData();
+      })
+      .catch(() => setAllowed(false));
+  }, []);
+  if (allowed === null) return <main className="admin-login"><form><h1>Loading</h1><p>Verifying secure admin session…</p></form></main>;
   if (!allowed)
     return (
       <main className="admin-login">
         <form>
           <h1>Protected area</h1>
-          <p>Start a demo admin session to view operations.</p>
+          <p>Sign in with your admin credentials to view operations.</p>
           <a className="dark-button" href="/admin/login">
             Go to admin login
           </a>
         </form>
       </main>
     );
-  const low = Object.values(stock).filter((n) => n < 5).length;
+  const low = adminCatalog.filter((product) => product.active !== false && product.stock < 5).length;
+  const openOrders = orders.filter((order) => !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.status));
+  const revenue = orders.filter((order) => order.status !== 'CANCELLED').reduce((sum, order) => sum + order.total, 0);
+
+  const updateStock = async (product: Product, stock: number) => {
+    setAdminError('');
+    const response = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: product.slug, stock: Math.max(0, stock) }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setAdminError(result.error || 'Inventory could not be updated.');
+      return;
+    }
+    await loadAdminData();
+    setSaved(`${product.name} inventory updated.`);
+  };
+
+  const archiveProduct = async (product: Product) => {
+    const response = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: product.slug, active: product.active === false }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setAdminError(result.error || 'Product could not be updated.');
+      return;
+    }
+    await loadAdminData();
+    setSaved(product.active === false ? `${product.name} restored.` : `${product.name} archived.`);
+  };
+
+  const updateOrder = async (order: Order, status: string) => {
+    const response = await fetch('/api/admin/orders', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ number: order.number, status }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setAdminError(result.error || 'Order status could not be updated.');
+      return;
+    }
+    setOrders((current) => current.map((entry) => (entry.number === order.number ? result : entry)));
+    setSelectedOrder((current) => (current?.number === order.number ? result : current));
+    setSaved(`${order.number} moved to ${status.toLowerCase()}.`);
+  };
   return (
     <main className="admin-shell">
       <aside>
@@ -1732,8 +1897,8 @@ function AdminView() {
         ))}
         <button
           className="logout"
-          onClick={() => {
-            sessionStorage.removeItem('zyra-admin-demo');
+          onClick={async () => {
+            await fetch('/api/admin/session', { method: 'DELETE' });
             location.href = '/admin/login';
           }}
         >
@@ -1754,14 +1919,14 @@ function AdminView() {
           <>
             <div className="stat-grid">
               <div>
-                <small>Demo revenue</small>
-                <b>Rs. 184,290</b>
-                <span>+12.4% this month</span>
+                <small>Recorded revenue</small>
+                <b>{money(revenue)}</b>
+                <span>{orders.length} total database orders</span>
               </div>
               <div>
                 <small>Open orders</small>
-                <b>18</b>
-                <span>6 ready to pack</span>
+                <b>{openOrders.length}</b>
+                <span>Needs fulfilment</span>
               </div>
               <div>
                 <small>Low stock SKUs</small>
@@ -1769,23 +1934,36 @@ function AdminView() {
                 <span>Needs attention</span>
               </div>
               <div>
-                <small>Conversion</small>
-                <b>3.8%</b>
-                <span>Seeded metric</span>
+                <small>Active products</small>
+                <b>{adminCatalog.filter((product) => product.active !== false).length}</b>
+                <span>{adminCatalog.filter((product) => product.active === false).length} archived</span>
               </div>
             </div>
-            <AdminOrders />
+            <AdminOrders orders={orders.slice(0, 5)} onStatus={updateOrder} onSelect={setSelectedOrder} />
           </>
         )}
         {tab === 'products' && (
-          <div className="admin-table">
+          <section className="admin-products-section">
+            <div className="admin-section-head">
+              <div><h2>Product catalog</h2><p>Add products, edit details, control visibility and adjust stock.</p></div>
+              <button className="dark-button" onClick={() => { setEditing(null); setProductFormOpen(true); }}><Plus /> Add product</button>
+            </div>
+            {productFormOpen && (
+              <ProductEditor
+                product={editing}
+                onCancel={() => { setEditing(null); setProductFormOpen(false); }}
+                onSaved={async (message) => { await loadAdminData(); setSaved(message); setEditing(null); setProductFormOpen(false); }}
+              />
+            )}
+            <div className="admin-table">
             <div className="table-head">
               <b>Product</b>
               <b>SKU</b>
               <b>Status</b>
               <b>Inventory</b>
+              <b>Actions</b>
             </div>
-            {products.map((p, i) => (
+            {adminCatalog.map((p, i) => (
               <div key={p.slug}>
                 <span>
                   <img src={p.image} alt="" />
@@ -1793,57 +1971,55 @@ function AdminView() {
                 </span>
                 <code>ZY-{String(i + 1).padStart(3, '0')}</code>
                 <span className="status">
-                  {stock[p.slug] === 0 ? 'Sold out' : 'Active'}
+                  {p.active === false ? 'Archived' : p.stock === 0 ? 'Sold out' : 'Active'}
                 </span>
                 <span className="inventory">
                   <button
-                    onClick={() =>
-                      setStock((s) => ({
-                        ...s,
-                        [p.slug]: Math.max(0, s[p.slug] - 1),
-                      }))
-                    }
+                    aria-label={`Decrease ${p.name} inventory`}
+                    onClick={() => void updateStock(p, p.stock - 1)}
                   >
                     −
                   </button>
-                  <b>{stock[p.slug]}</b>
+                  <b>{p.stock}</b>
                   <button
                     onClick={() =>
-                      setStock((s) => ({ ...s, [p.slug]: s[p.slug] + 1 }))
+                      void updateStock(p, p.stock + 1)
                     }
+                    aria-label={`Increase ${p.name} inventory`}
                   >
                     +
                   </button>
                 </span>
+                <span className="admin-actions">
+                  <button onClick={() => { setEditing(p); setProductFormOpen(true); }}><Pencil /> Edit</button>
+                  <button onClick={() => void archiveProduct(p)}>{p.active === false ? 'Restore' : 'Archive'}</button>
+                </span>
               </div>
             ))}
-          </div>
+            </div>
+          </section>
         )}
-        {tab === 'orders' && <AdminOrders />}
+        {tab === 'orders' && <AdminOrders orders={orders} onStatus={updateOrder} onSelect={setSelectedOrder} />}
         {tab === 'content' && (
           <div className="admin-form">
             <h2>Homepage content</h2>
-            {[
-              'Campaign hero',
-              'Best sellers',
-              'Brand manifesto',
-              'Core forms',
-              'Collection grid',
-              'Customer reviews',
-            ].map((x, i) => (
-              <label className="toggle-row" key={x}>
+            {sections.map((section, i) => (
+              <label className="toggle-row" key={section.key}>
                 <span>
-                  <b>{x}</b>
+                  <b>{section.label}</b>
                   <small>Section {String(i + 1).padStart(2, '0')}</small>
                 </span>
-                <input type="checkbox" defaultChecked />
+                <input type="checkbox" checked={section.enabled} onChange={(event) => setSections((current) => current.map((item) => item.key === section.key ? { ...item, enabled: event.target.checked } : item))} />
               </label>
             ))}
             <button
               className="dark-button"
-              onClick={() =>
-                setSaved('Homepage order saved locally for this demo.')
-              }
+              onClick={async () => {
+                const response = await fetch('/api/admin/content', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sections }) });
+                const result = await response.json();
+                if (!response.ok) { setAdminError(result.error || 'Content could not be saved.'); return; }
+                setSections(result); setSaved('Homepage content saved to Supabase.');
+              }}
             >
               Save content order
             </button>
@@ -1853,66 +2029,145 @@ function AdminView() {
         {tab === 'settings' && (
           <form
             className="admin-form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              setSaved('Store settings saved for this demo session.');
+              const response = await fetch('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(settings) });
+              const result = await response.json();
+              if (!response.ok) { setAdminError(result.error || 'Settings could not be saved.'); return; }
+              setSettings(result); setSaved('Store settings saved to Supabase.');
             }}
           >
             <h2>Store settings</h2>
             <label>
               Store name
-              <input defaultValue="ZYRA" />
+              <input value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} />
             </label>
             <label>
               Support email
-              <input type="email" defaultValue="hello@zyra.store" />
+              <input type="email" value={settings.supportEmail} onChange={(event) => setSettings({ ...settings, supportEmail: event.target.value })} />
             </label>
             <label>
               Free shipping threshold
-              <input defaultValue="4999" inputMode="numeric" />
+              <input value={settings.freeShippingThreshold / 100} inputMode="numeric" onChange={(event) => setSettings({ ...settings, freeShippingThreshold: Math.max(0, Math.round(Number(event.target.value) * 100)) })} />
             </label>
             <label>
               Bank transfer instructions
-              <textarea defaultValue="Use your order number as the payment reference." />
+              <textarea value={settings.bankTransferInstructions} onChange={(event) => setSettings({ ...settings, bankTransferInstructions: event.target.value })} />
             </label>
             <button className="dark-button">Save settings</button>
             {saved && <p className="success">{saved}</p>}
           </form>
         )}
+        {(saved || adminError) && <div className={`admin-toast ${adminError ? 'error' : ''}`}>{adminError || saved}</div>}
       </section>
+      {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrder} catalog={adminCatalog} />}
     </main>
   );
 }
 
-function AdminOrders() {
+function ProductEditor({
+  product,
+  onCancel,
+  onSaved,
+}: {
+  product: Product | null;
+  onCancel: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  return (
+    <form className="admin-product-form" onSubmit={async (event) => {
+      event.preventDefault();
+      setBusy(true);
+      setError('');
+      const data = new FormData(event.currentTarget);
+      const rupees = Number(data.get('price'));
+      const compareRupees = Number(data.get('compareAt'));
+      const body = {
+        originalSlug: product?.slug,
+        name: String(data.get('name') || '').trim(),
+        slug: String(data.get('slug') || '').trim().toLowerCase(),
+        category: String(data.get('category') || ''),
+        collection: String(data.get('collection') || ''),
+        price: Math.round(rupees * 100),
+        compareAt: compareRupees > 0 ? Math.round(compareRupees * 100) : undefined,
+        stock: Number(data.get('stock')),
+        colors: String(data.get('colors') || '').split(',').map((value) => value.trim()).filter(Boolean),
+        sizes: String(data.get('sizes') || '').split(',').map((value) => value.trim()).filter(Boolean),
+        image: String(data.get('image') || ''),
+        alternate: String(data.get('alternate') || ''),
+        description: String(data.get('description') || ''),
+        featured: data.get('featured') === 'on',
+        newArrival: data.get('newArrival') === 'on',
+        rating: product?.rating || 0,
+        reviews: product?.reviews || 0,
+      };
+      try {
+        const response = await fetch('/api/admin/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Product could not be saved.');
+        onSaved(`${body.name} ${product ? 'updated' : 'added'} successfully.`);
+      } catch (saveError) {
+        setError(saveError instanceof Error ? saveError.message : 'Product could not be saved.');
+        setBusy(false);
+      }
+    }}>
+      <div className="admin-section-head"><div><p className="eyebrow">{product ? 'Edit product' : 'New product'}</p><h2>{product?.name || 'Create a storefront item'}</h2></div><button type="button" className="icon-button" onClick={onCancel} aria-label="Close product form"><X /></button></div>
+      <div className="form-grid">
+        <label>Name<input name="name" required defaultValue={product?.name} /></label>
+        <label>URL slug<input name="slug" required pattern="[a-z0-9-]+" defaultValue={product?.slug} placeholder="midnight-tee" /></label>
+        <label>Category<select name="category" defaultValue={product?.category || categories[0].name}>{categories.map((category) => <option key={category.slug}>{category.name}</option>)}</select></label>
+        <label>Collection<input name="collection" required defaultValue={product?.collection || 'After Hours'} /></label>
+        <label>Price (PKR)<input name="price" required type="number" min="0" step="1" defaultValue={product ? product.price / 100 : ''} /></label>
+        <label>Compare price (PKR)<input name="compareAt" type="number" min="0" step="1" defaultValue={product?.compareAt ? product.compareAt / 100 : ''} /></label>
+        <label>Stock<input name="stock" required type="number" min="0" step="1" defaultValue={product?.stock ?? 0} /></label>
+        <label>Sizes, comma separated<input name="sizes" required defaultValue={product?.sizes.join(', ') || 'S, M, L, XL'} /></label>
+        <label className="wide">Colors, comma separated<input name="colors" required defaultValue={product?.colors.join(', ') || 'Obsidian, Bone'} /></label>
+        <label className="wide">Primary image path<input name="image" required defaultValue={product?.image || '/product-tee.jpg'} /></label>
+        <label className="wide">Alternate image path<input name="alternate" required defaultValue={product?.alternate || '/campaign.jpg'} /></label>
+        <label className="wide">Description<textarea name="description" required rows={4} defaultValue={product?.description} /></label>
+      </div>
+      <div className="admin-checks"><label><input type="checkbox" name="featured" defaultChecked={product?.featured} /> Featured</label><label><input type="checkbox" name="newArrival" defaultChecked={product?.newArrival ?? true} /> New arrival</label></div>
+      {error && <p className="form-error">{error}</p>}
+      <div className="admin-form-actions"><button type="button" className="outline-button" onClick={onCancel}>Cancel</button><button className="dark-button" disabled={busy}>{busy ? 'Saving…' : 'Save product'}</button></div>
+    </form>
+  );
+}
+
+const statusFlow: Record<string, string[]> = {
+  PENDING: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['PROCESSING', 'CANCELLED'], PROCESSING: ['PACKED', 'CANCELLED'], PACKED: ['SHIPPED', 'CANCELLED'], SHIPPED: ['DELIVERED', 'RETURN_REQUESTED'], DELIVERED: ['RETURN_REQUESTED'], RETURN_REQUESTED: ['RETURNED'], CANCELLED: [], RETURNED: [],
+};
+
+function AdminOrders({ orders, onStatus, onSelect }: { orders: Order[]; onStatus: (order: Order, status: string) => void; onSelect: (order: Order) => void }) {
   return (
     <section className="admin-orders">
-      <h2>Recent orders</h2>
-      {[
-        ['ZY-260903-A71C', 'A. Khan', 'Rs. 7,230', 'Confirmed'],
-        ['ZY-260903-91BF', 'N. Rahman', 'Rs. 4,490', 'Packing'],
-        ['ZY-260902-7D23', 'S. Ali', 'Rs. 9,180', 'Awaiting payment'],
-        ['ZY-260902-E614', 'H. Noor', 'Rs. 2,740', 'Shipped'],
-      ].map((row) => (
-        <div key={row[0]}>
-          {row.map((cell, i) => (
-            <span key={cell} className={i === 3 ? 'status' : ''}>
-              {cell}
-            </span>
-          ))}
-          <select aria-label={`Update ${row[0]} status`} defaultValue={row[3]}>
-            <option>Confirmed</option>
-            <option>Processing</option>
-            <option>Packing</option>
-            <option>Shipped</option>
-            <option>Delivered</option>
-            <option>Cancelled</option>
-            <option>Awaiting payment</option>
+      <div className="admin-section-head"><div><h2>Orders</h2><p>Customer, contact, payment and fulfilment information in one place.</p></div><span className="status">{orders.length} records</span></div>
+      {orders.length === 0 ? <div className="admin-empty"><PackageCheck /><h3>No orders yet</h3><p>Place a test order through the storefront; it will appear here instantly.</p></div> : orders.map((order) => (
+        <div key={order.number}>
+          <button className="order-link" onClick={() => onSelect(order)}><b>{order.number}</b><small>{new Date(order.createdAt).toLocaleString('en-PK')}</small></button>
+          <span><b>{order.customer.firstName} {order.customer.lastName}</b><small>{order.customer.email}<br />{order.customer.phone}</small></span>
+          <span><b>{money(order.total)}</b><small>{order.payment === 'cod' ? 'Cash on delivery' : 'Bank transfer'}</small></span>
+          <span className="status">{order.status.replaceAll('_', ' ')}</span>
+          <select aria-label={`Update ${order.number} status`} value={order.status} onChange={(event) => onStatus(order, event.target.value)}>
+            <option value={order.status}>{order.status.replaceAll('_', ' ')}</option>
+            {statusFlow[order.status].map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}
           </select>
+          <button className="icon-button" onClick={() => onSelect(order)} aria-label={`View ${order.number}`}><Eye /></button>
         </div>
       ))}
     </section>
   );
+}
+
+function OrderDetail({ order, onClose, onStatus, catalog }: { order: Order; onClose: () => void; onStatus: (order: Order, status: string) => void; catalog: Product[] }) {
+  return <div className="overlay order-detail-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="order-detail" role="dialog" aria-modal="true" aria-label={`Order ${order.number}`}>
+    <div className="panel-head"><div><p className="eyebrow">Order detail</p><b>{order.number}</b></div><button className="icon-button" onClick={onClose} aria-label="Close order details"><X /></button></div>
+    <div className="order-detail-status"><span className="status">{order.status.replaceAll('_', ' ')}</span><select value={order.status} onChange={(event) => onStatus(order, event.target.value)}><option value={order.status}>{order.status.replaceAll('_', ' ')}</option>{statusFlow[order.status].map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select></div>
+    <section><p className="eyebrow">Customer</p><h3>{order.customer.firstName} {order.customer.lastName}</h3><a href={`mailto:${order.customer.email}`}>{order.customer.email}</a><a href={`tel:${order.customer.phone}`}>{order.customer.phone}</a></section>
+    <section><p className="eyebrow">Deliver to</p><p>{order.delivery.address}<br />{order.delivery.city}, {order.delivery.province} {order.delivery.postal}</p>{order.delivery.note && <small>Note: {order.delivery.note}</small>}</section>
+    <section><p className="eyebrow">Items</p>{order.items.map((item, index) => { const product = catalog.find((entry) => entry.slug === item.slug); return <div className="order-detail-line" key={`${item.slug}-${index}`}><img src={product?.image || '/product-tee.jpg'} alt="" /><span><b>{product?.name || item.slug}</b><small>{item.color} / {item.size} · Qty {item.qty}</small></span><strong>{money(item.lineTotal)}</strong></div>; })}</section>
+    <dl><div><dt>Subtotal</dt><dd>{money(order.subtotal)}</dd></div><div><dt>Shipping</dt><dd>{order.shipping ? money(order.shipping) : 'Free'}</dd></div><div className="total"><dt>Total</dt><dd>{money(order.total)}</dd></div></dl>
+  </aside></div>;
 }
 
 function InfoPage({ path }: { path: string }) {

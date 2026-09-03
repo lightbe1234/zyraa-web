@@ -1,4 +1,4 @@
-import { productBySlug } from './catalog.ts';
+import { productBySlug, type Product } from './catalog.ts';
 export type PricedItem = {
   slug: string;
   size: string;
@@ -10,10 +10,19 @@ export type PricedItem = {
 export function priceCart(
   items: Array<{ slug: string; size: string; color: string; qty: number }>,
 ) {
+  return priceCartWithCatalog(items, undefined);
+}
+
+export function priceCartWithCatalog(
+  items: Array<{ slug: string; size: string; color: string; qty: number }>,
+  catalog?: Product[],
+) {
   if (!Array.isArray(items) || items.length === 0)
     throw new Error('EMPTY_CART');
   const priced: PricedItem[] = items.map((item) => {
-    const product = productBySlug(item.slug);
+    const product = catalog
+      ? catalog.find((entry) => entry.slug === item.slug)
+      : productBySlug(item.slug);
     if (!product) throw new Error('PRODUCT_NOT_FOUND');
     if (
       !product.sizes.includes(item.size) ||

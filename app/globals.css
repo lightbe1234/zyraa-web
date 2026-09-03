@@ -1784,6 +1784,32 @@ button:focus-visible {
   background: var(--paper);
   border: 1px solid var(--line);
 }
+.admin-products-section {
+  margin-top: 35px;
+}
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.admin-section-head h2,
+.admin-section-head p {
+  margin: 0;
+}
+.admin-section-head p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.admin-section-head .dark-button svg {
+  width: 15px;
+}
+.admin-orders > .admin-section-head {
+  padding: 20px;
+  min-height: auto;
+  display: flex;
+}
 .admin-orders h2,
 .admin-form h2 {
   padding: 20px;
@@ -1795,10 +1821,48 @@ button:focus-visible {
   min-height: 62px;
   padding: 10px 16px;
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1fr 160px;
+  grid-template-columns: 1.2fr 1.25fr 0.8fr 0.75fr 150px 42px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   font: 11px var(--font-geist-mono);
+}
+.admin-orders .order-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-orders .order-link b,
+.admin-orders > div > span:not(.status) b,
+.admin-orders .order-link small,
+.admin-orders > div > span:not(.status) small {
+  display: block;
+}
+.admin-orders .order-link small,
+.admin-orders > div > span:not(.status) small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.admin-empty {
+  min-height: 260px !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center !important;
+  justify-content: center;
+  text-align: center;
+}
+.admin-empty svg {
+  width: 32px;
+}
+.admin-empty h3 {
+  margin: 12px 0 0;
+}
+.admin-empty p {
+  color: var(--muted);
+  font-family: var(--font-geist-sans);
 }
 .admin-orders select {
   height: 38px;
@@ -1820,7 +1884,7 @@ button:focus-visible {
   min-height: 68px;
   padding: 8px 16px;
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 0.75fr 0.65fr 0.8fr 1.1fr;
   align-items: center;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
@@ -1851,6 +1915,162 @@ button:focus-visible {
   height: 32px;
   border: 1px solid var(--line);
   background: transparent;
+}
+.admin-actions {
+  display: flex;
+  gap: 6px;
+}
+.admin-actions button {
+  min-height: 32px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font: 9px var(--font-geist-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.admin-actions svg {
+  width: 12px;
+}
+.admin-product-form {
+  margin: 22px 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.admin-product-form .form-grid {
+  margin-top: 22px;
+}
+.admin-product-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font: 10px var(--font-geist-mono);
+  text-transform: uppercase;
+}
+.admin-product-form input,
+.admin-product-form select,
+.admin-product-form textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font: 14px var(--font-geist-sans);
+}
+.admin-product-form textarea {
+  resize: vertical;
+}
+.admin-checks,
+.admin-form-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.admin-checks label {
+  flex-direction: row;
+  align-items: center;
+}
+.admin-checks input {
+  width: 16px;
+  min-height: 16px;
+}
+.admin-form-actions {
+  justify-content: flex-end;
+}
+.admin-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  max-width: 420px;
+  padding: 13px 16px;
+  background: #dce5da;
+  border: 1px solid #afc5ab;
+  color: var(--success);
+  font-size: 12px;
+}
+.admin-toast.error {
+  background: #eadbd6;
+  border-color: #d7aea5;
+  color: #7d261a;
+}
+.order-detail-overlay {
+  justify-content: flex-end;
+}
+.order-detail {
+  width: min(560px, 100vw);
+  height: 100vh;
+  overflow: auto;
+  padding: 0 28px 35px;
+  background: var(--paper);
+}
+.order-detail .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: -28px;
+  padding-inline: 28px;
+  background: var(--paper);
+}
+.order-detail-status {
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.order-detail-status select {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+.order-detail section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.order-detail section h3 {
+  margin: 8px 0;
+}
+.order-detail section > a {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.order-detail-line {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+.order-detail-line img {
+  width: 58px;
+  height: 70px;
+  object-fit: cover;
+}
+.order-detail-line span,
+.order-detail-line small {
+  display: block;
+}
+.order-detail-line small {
+  margin-top: 5px;
+  color: var(--muted);
+}
+.order-detail dl > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.order-detail dl .total {
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 18px;
 }
 .admin-form {
   max-width: 700px;
@@ -2113,17 +2333,51 @@ button:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
   .admin-orders {
-    overflow: auto;
+    overflow: visible;
   }
   .admin-orders > div {
-    min-width: 760px;
+    min-width: 0;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 16px;
+  }
+  .admin-orders > .admin-section-head,
+  .admin-orders > .admin-empty {
+    display: flex;
+  }
+  .admin-orders > div > span:not(.status),
+  .admin-orders > div > select {
+    grid-column: 1;
+  }
+  .admin-orders > div > .status,
+  .admin-orders > div > .icon-button {
+    grid-column: 2;
+  }
+  .admin-orders > div > .status {
+    grid-row: 1;
+  }
+  .admin-orders > div > .icon-button {
+    grid-row: 2;
   }
   .admin-table {
     overflow: auto;
   }
   .admin-table > div,
   .admin-table > .table-head {
-    min-width: 680px;
+    min-width: 860px;
+  }
+  .admin-section-head {
+    align-items: flex-start;
+  }
+  .admin-product-form {
+    padding: 18px;
+  }
+  .order-detail {
+    padding-inline: 20px;
+  }
+  .order-detail .panel-head {
+    margin-inline: -20px;
+    padding-inline: 20px;
   }
   .footer {
     padding-top: 55px;

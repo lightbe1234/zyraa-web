@@ -14,6 +14,7 @@ export type Product = {
   sizes: string[];
   featured?: boolean;
   newArrival?: boolean;
+  active?: boolean;
   description: string;
 };
 const names = [
