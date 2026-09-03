@@ -1,6 +1,6 @@
 # ZYRA Commerce Demo
 
-An original, responsive streetwear ecommerce demo inspired by the editorial rhythm of modern fashion storefronts. It includes a 24-product catalog, search and filters, product variants, cart, server-priced checkout, COD/bank-transfer order confirmation, tracking, customer forms, and an interactive admin prototype.
+An original, responsive streetwear ecommerce store with a Supabase-backed catalog, search and filters, 1–4 image product galleries, product variants, cart, server-priced checkout, COD/bank-transfer order confirmation, tracking, customer forms, and a secured admin panel.
 
 ## Run locally
 
@@ -22,17 +22,17 @@ pnpm test
 pnpm build
 ```
 
-## Demo admin
+## Admin
 
-Open `/admin/login`. In the local prototype, any valid email plus an 8+ character password starts an isolated browser-session demo. No credentials are transmitted or stored. This intentionally is not production authentication; use the production adapter plan in `docs/architecture.md` before handling real customers.
+Open `/admin/login` and sign in with the credentials configured through `ZYRA_ADMIN_EMAIL` and `ZYRA_ADMIN_PASSWORD`. Products, image galleries, collection names and collection cover images are managed from the Products tab.
 
 ## Environment
 
-Only `NEXT_PUBLIC_SITE_URL` is used by this hosted demo. The remaining variables in `.env.example` document the production Postgres, session, S3-compatible storage, email, and admin bootstrap contract.
+Copy `.env.example` to `.env.local` and configure the Supabase, admin-session and site URL variables. Never commit real credentials.
 
 ## Architecture
 
-- Vinext App Router and React Server Components with a focused client storefront shell.
+- Next.js App Router and React Server Components with a focused client storefront shell.
 - Integer minor units for all prices.
 - Browser persistence stores only variant identifiers and quantities; prices are reloaded from the catalog.
 - `/api/orders` validates variants, stock, contact fields, payment mode and idempotency, then recalculates totals server-side.

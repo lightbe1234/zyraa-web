@@ -7,6 +7,7 @@ export type Product = {
   compareAt?: number;
   image: string;
   alternate: string;
+  images: string[];
   rating: number;
   reviews: number;
   stock: number;
@@ -75,6 +76,11 @@ export const products: Product[] = names.map((name, index) => {
     compareAt: index % 3 !== 2 ? price + 60000 : undefined,
     image: images[index % images.length],
     alternate: images[(index + 2) % images.length],
+    images: [
+      images[index % images.length],
+      images[(index + 2) % images.length],
+      images[(index + 4) % images.length],
+    ],
     rating: Number((4.6 + (index % 4) * 0.1).toFixed(1)),
     reviews: index % 5 === 0 ? 0 : 3 + index,
     stock: index === 17 ? 0 : index % 7 === 0 ? 3 : 8 + index,
@@ -86,7 +92,13 @@ export const products: Product[] = names.map((name, index) => {
       'A considered everyday layer cut with a relaxed silhouette, reinforced seams and a substantial hand-feel. Designed in Karachi and made for repeat wear.',
   };
 });
-export const categories = [
+export type Category = {
+  name: string;
+  slug: string;
+  image: string;
+};
+
+export const categories: Category[] = [
   { name: 'Oversized Tees', slug: 'oversized-tees', image: '/product-tee.jpg' },
   { name: 'Hoodies', slug: 'hoodies', image: '/product-hoodie.jpg' },
   { name: 'Outerwear', slug: 'outerwear', image: '/campaign.jpg' },

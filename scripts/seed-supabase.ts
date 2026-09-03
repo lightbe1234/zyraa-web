@@ -15,6 +15,7 @@ const rows = products.map((product) => ({
   compare_at: product.compareAt ?? null,
   image: product.image,
   alternate: product.alternate,
+  images: product.images,
   rating: product.rating,
   reviews: product.reviews,
   stock: product.stock,

@@ -15,6 +15,9 @@ function validateProduct(value: Partial<Product>): Product {
   if (!Array.isArray(value.colors) || !value.colors.length || !Array.isArray(value.sizes) || !value.sizes.length) {
     throw new Error('Add at least one color and size.');
   }
+  const images = Array.isArray(value.images) ? value.images.map((image) => String(image).trim()).filter(Boolean) : [];
+  if (images.length < 1 || images.length > 4) throw new Error('Upload 1 to 4 product images.');
+  if (images.some((image) => image.length > 2048)) throw new Error('One of the product image URLs is invalid.');
   return {
     slug: value.slug!,
     name: value.name!,
@@ -22,8 +25,9 @@ function validateProduct(value: Partial<Product>): Product {
     collection: value.collection!,
     price: value.price!,
     compareAt: value.compareAt,
-    image: value.image!,
-    alternate: value.alternate!,
+    image: images[0],
+    alternate: images[1] || images[0],
+    images,
     rating: Number(value.rating || 0),
     reviews: Number(value.reviews || 0),
     stock: value.stock!,

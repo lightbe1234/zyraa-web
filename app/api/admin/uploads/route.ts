@@ -20,13 +20,14 @@ export async function POST(request: Request) {
     }
     const form = await request.formData();
     const file = form.get('file');
+    const scope = form.get('scope') === 'collection' ? 'collections' : 'products';
     if (!(file instanceof File)) return Response.json({ error: 'Choose an image to upload.' }, { status: 400 });
     const extension = extensions[file.type];
     if (!extension) return Response.json({ error: 'Use a JPG, PNG, WebP or AVIF image.' }, { status: 400 });
     if (file.size < 1 || file.size > MAX_FILE_SIZE) return Response.json({ error: 'Image must be smaller than 4 MB.' }, { status: 400 });
 
     const now = new Date();
-    const path = `products/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${extension}`;
+    const path = `${scope}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${extension}`;
     const client = getSupabaseAdmin();
     const { error } = await client.storage.from('product-images').upload(path, await file.arrayBuffer(), {
       contentType: file.type,

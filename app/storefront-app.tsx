@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   CircleUserRound,
@@ -19,6 +20,7 @@ import {
   Search,
   ShieldCheck,
   ShoppingBag,
+  Trash2,
   Truck,
   X,
 } from 'lucide-react';
@@ -26,8 +28,10 @@ import {
   categories,
   money,
   products as seededProducts,
+  type Category,
   type Product,
 } from '@/lib/catalog';
+import { seedReviews, type Review } from '@/lib/reviews';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -49,6 +53,11 @@ type StoreSettings = {
   freeShippingThreshold: number;
   flatShipping: number;
   bankTransferInstructions: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  tiktokUrl?: string;
+  whatsappUrl?: string;
 };
 type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 const defaultStoreSettings: StoreSettings = {
@@ -57,6 +66,11 @@ const defaultStoreSettings: StoreSettings = {
   freeShippingThreshold: 499900,
   flatShipping: 25000,
   bankTransferInstructions: 'Use your order number as the payment reference.',
+  instagramUrl: 'https://instagram.com',
+  facebookUrl: 'https://facebook.com',
+  youtubeUrl: 'https://youtube.com',
+  tiktokUrl: 'https://tiktok.com',
+  whatsappUrl: 'https://wa.me/923000000000',
 };
 const announcements = [
   'Free shipping across Pakistan over Rs. 4,999',
@@ -99,6 +113,38 @@ export default function StorefrontApp({ path }: { path: string }) {
     [cartOpen, setCartOpen] = useState(false),
     [notice, setNotice] = useState(0),
     [toast, setToast] = useState('');
+
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('zyra-community-reviews');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return seedReviews;
+  });
+
+  const addReview = (newReview: Review) => {
+    setReviews((prev) => {
+      const updated = [newReview, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zyra-community-reviews', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const deleteReview = (id: string) => {
+    setReviews((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zyra-community-reviews', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+  const [collectionsList, setCollectionsList] = useState<Category[]>(categories);
+
   const countdown = useCountdown();
   useEffect(() => {
     try {
@@ -111,9 +157,10 @@ export default function StorefrontApp({ path }: { path: string }) {
       .catch(() => setToast('Live catalog is temporarily unavailable.'));
     fetch('/api/store-config')
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((value: { settings: StoreSettings; sections: ContentSection[] }) => {
+      .then((value: { settings: StoreSettings; sections: ContentSection[]; collections: Category[] }) => {
         setStoreSettings(value.settings);
         setHomeSections(value.sections);
+        if (value.collections?.length) setCollectionsList(value.collections);
       })
       .catch(() => setToast('Store settings are temporarily unavailable.'));
   }, []);
@@ -208,13 +255,20 @@ export default function StorefrontApp({ path }: { path: string }) {
         </>
       )}
       {path === '/' ? (
-        <Home catalog={catalog} sections={homeSections} />
+        <Home
+          catalog={catalog}
+          sections={homeSections}
+          reviews={reviews}
+          onAddReview={addReview}
+          onDeleteReview={deleteReview}
+          collections={collectionsList}
+        />
       ) : path.startsWith('/products/') ? (
         <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} />
       ) : path === '/collections' ||
         path.startsWith('/collections/') ||
         path === '/search' ? (
-        <CatalogView path={path} catalog={catalog} />
+        <CatalogView path={path} catalog={catalog} collections={collectionsList} />
       ) : path === '/cart' ? (
         <CartView cart={cart} subtotal={subtotal} update={update} catalog={catalog} settings={storeSettings} />
       ) : path === '/checkout' ? (
@@ -234,12 +288,20 @@ export default function StorefrontApp({ path }: { path: string }) {
       ) : path === '/admin/login' ? (
         <AdminLogin />
       ) : path.startsWith('/admin') ? (
-        <AdminView catalog={catalog} onCatalogChange={setCatalog} />
+        <AdminView
+          catalog={catalog}
+          onCatalogChange={setCatalog}
+          reviews={reviews}
+          onAddReview={addReview}
+          onDeleteReview={deleteReview}
+          collections={collectionsList}
+          onCollectionsChange={setCollectionsList}
+        />
       ) : (
         <InfoPage path={path} />
       )}
-      {storefront && <Footer />}
-      <Drawer open={menuOpen} close={() => setMenuOpen(false)} />
+      {storefront && <Footer settings={storeSettings} collections={collectionsList} />}
+      <Drawer open={menuOpen} close={() => setMenuOpen(false)} collections={collectionsList} />
       <SearchPanel open={searchOpen} close={() => setSearchOpen(false)} catalog={catalog} />
       <CartPanel
         open={cartOpen}
@@ -300,7 +362,15 @@ function Header({
   );
 }
 
-function Drawer({ open, close }: { open: boolean; close: () => void }) {
+function Drawer({
+  open,
+  close,
+  collections = categories,
+}: {
+  open: boolean;
+  close: () => void;
+  collections?: Category[];
+}) {
   const [shop, setShop] = useState(false);
   if (!open) return null;
   return (
@@ -327,7 +397,7 @@ function Drawer({ open, close }: { open: boolean; close: () => void }) {
         </div>
         {shop ? (
           <nav className="drawer-links">
-            {categories.map((c) => (
+            {collections.map((c) => (
               <a href={`/collections/${c.slug}`} key={c.slug}>
                 {c.name}
                 <ChevronRight />
@@ -516,7 +586,13 @@ function CartPanel({
   );
 }
 
+function getProductImages(product: Product) {
+  const gallery = product.images?.filter(Boolean) || [];
+  return gallery.length ? gallery : [product.image, product.alternate].filter(Boolean);
+}
+
 function ProductCard({ product }: { product: Product }) {
+  const gallery = getProductImages(product);
   const discount = product.compareAt
     ? Math.round((1 - product.price / product.compareAt) * 100)
     : 0;
@@ -526,13 +602,13 @@ function ProductCard({ product }: { product: Product }) {
         <div className="product-image">
           <img
             className="primary"
-            src={product.image}
+            src={gallery[0]}
             alt={product.name}
             loading="lazy"
           />
           <img
             className="alternate"
-            src={product.alternate}
+            src={gallery[1] || gallery[0]}
             alt=""
             loading="lazy"
           />
@@ -604,7 +680,881 @@ function Rail({
   );
 }
 
-function Home({ catalog, sections }: { catalog: Product[]; sections: ContentSection[] }) {
+function CommunityReviews({
+  reviews,
+  onAddReview,
+  onDeleteReview,
+  isAdmin = false,
+  catalog = [],
+}: {
+  reviews: Review[];
+  onAddReview: (review: Review) => void;
+  onDeleteReview: (id: string) => void;
+  isAdmin?: boolean;
+  catalog?: Product[];
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [helpfulVotes, setHelpfulVotes] = useState<Record<string, number>>({});
+  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
+
+  // Modals
+  const [writeModalOpen, setWriteModalOpen] = useState(false);
+  const [congratsModalOpen, setCongratsModalOpen] = useState(false);
+  const [adminAddModalOpen, setAdminAddModalOpen] = useState(false);
+
+  // Visitor review form
+  const [userForm, setUserForm] = useState({
+    author: '',
+    purchasedSize: 'Size M',
+    productName: catalog[0]?.name || 'Heavyweight Boxy Tee (280GSM)',
+    rating: 5,
+    quote: '',
+    stats: "5'10\" · 75kg",
+    fitRating: 'True to size',
+    category: 'tees',
+  });
+
+  // Admin add review form
+  const [adminForm, setAdminForm] = useState({
+    author: '',
+    purchasedSize: 'Size L',
+    productName: catalog[0]?.name || 'Heavyweight Boxy Tee (280GSM)',
+    productSlug: catalog[0]?.slug || 'concrete-box-tee',
+    rating: 5,
+    quote: '',
+    stats: "6'0\" · 80kg",
+    fitRating: 'True to size',
+    category: 'tees',
+    verified: true,
+  });
+
+  const categoriesList = [
+    { label: 'ALL', value: 'ALL', count: reviews.length },
+    { label: 'TEES', value: 'tees', count: reviews.filter((r) => r.category === 'tees').length },
+    { label: 'HOODIES', value: 'hoodies', count: reviews.filter((r) => r.category === 'hoodies').length },
+    { label: 'CARGO', value: 'cargo', count: reviews.filter((r) => r.category === 'cargo').length },
+    { label: 'FIT PICS', value: 'fit-pics', count: reviews.filter((r) => r.category === 'fit-pics').length },
+  ];
+
+  const filteredReviews = useMemo(() => {
+    if (selectedCategory === 'ALL') return reviews;
+    return reviews.filter((r) => r.category === selectedCategory);
+  }, [reviews, selectedCategory]);
+
+  const visibleReviews = showAll ? filteredReviews : filteredReviews.slice(0, 3);
+
+  const toggleHelpful = (id: string, initialCount: number) => {
+    if (votedIds.has(id)) return;
+    setVotedIds((prev) => new Set(prev).add(id));
+    setHelpfulVotes((prev) => ({
+      ...prev,
+      [id]: (prev[id] ?? initialCount) + 1,
+    }));
+  };
+
+  const handleUserSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setWriteModalOpen(false);
+    setCongratsModalOpen(true);
+    setUserForm({
+      author: '',
+      purchasedSize: 'Size M',
+      productName: catalog[0]?.name || 'Heavyweight Boxy Tee (280GSM)',
+      rating: 5,
+      quote: '',
+      stats: "5'10\" · 75kg",
+      fitRating: 'True to size',
+      category: 'tees',
+    });
+  };
+
+  const handleAdminSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const initials = adminForm.author
+      ? adminForm.author
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2)
+      : 'ZY';
+    const newRev: Review = {
+      id: `rev-${Date.now()}`,
+      author: adminForm.author || 'Verified Customer',
+      initials,
+      verified: adminForm.verified,
+      purchasedSize: adminForm.purchasedSize,
+      productSlug: adminForm.productSlug,
+      productName: adminForm.productName,
+      rating: Number(adminForm.rating),
+      quote: adminForm.quote || '“Outstanding quality and silhouette.”',
+      stats: adminForm.stats,
+      fitRating: adminForm.fitRating,
+      dateAgo: 'Just now',
+      helpfulCount: 0,
+      category: adminForm.category,
+    };
+    onAddReview(newRev);
+    setAdminAddModalOpen(false);
+  };
+
+  return (
+    <section
+      className="community-reviews section-shell"
+      id="reviews"
+      style={{
+        background: '#E8E6DF',
+        padding: '36px 4vw',
+        borderTop: '1px solid var(--line)',
+        borderBottom: '1px solid var(--line)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+      }}
+    >
+      <header className="community-reviews-head" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div
+          className="reviews-meta-banner"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: '10px',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#716F6A',
+            fontWeight: 600,
+          }}
+        >
+          <span>COMMUNITY ARCHIVE // VERIFIED</span>
+          <span
+            className="index-pill"
+            style={{
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              background: 'rgba(0, 0, 0, 0.06)',
+              color: 'var(--ink)',
+              fontWeight: 500,
+            }}
+          >
+            INDEX 24/25
+          </span>
+        </div>
+        <div
+          className="reviews-title-block"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 'clamp(28px, 4vw, 48px)',
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              textTransform: 'uppercase',
+              lineHeight: 1.05,
+              color: '#111',
+              margin: 0,
+            }}
+          >
+            Worn Hard.
+            <br />
+            <span className="highlight-sub" style={{ color: '#8C8980', fontWeight: 500 }}>
+              Rated Honestly.
+            </span>
+          </h2>
+          {isAdmin && (
+            <button
+              className="dark-button admin-add-btn"
+              onClick={() => setAdminAddModalOpen(true)}
+              style={{ fontSize: '11px', padding: '8px 16px' }}
+            >
+              <Plus /> Admin: Add Review
+            </button>
+          )}
+        </div>
+
+        <div
+          className="reviews-stats-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: '12px',
+            paddingBottom: '14px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div className="score-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+            <span className="score-num" style={{ fontSize: '38px', fontWeight: 800, letterSpacing: '-0.04em', color: '#111', lineHeight: 1 }}>
+              4.9
+            </span>
+            <div className="score-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div className="stars-row" style={{ color: '#111', fontSize: '13px', letterSpacing: '2px' }}>
+                ★★★★★
+              </div>
+              <span
+                className="wear-count"
+                style={{
+                  fontFamily: 'var(--font-geist-mono), monospace',
+                  fontSize: '10px',
+                  color: '#716F6A',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {reviews.length} VERIFIED WEARS
+              </span>
+            </div>
+          </div>
+          <div
+            className="fit-accuracy-tag"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              background: 'rgba(255, 255, 255, 0.8)',
+              border: '1px solid rgba(0, 0, 0, 0.1)',
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#111',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <span
+              className="pulse-dot"
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: '#10b981',
+                boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+              }}
+            />
+            <span>98% FIT ACCURACY</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Category Filter Chips Bar */}
+      <nav
+        className="reviews-filter-chips"
+        aria-label="Review categories"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          overflowX: 'auto',
+          padding: '4px 0',
+        }}
+      >
+        {categoriesList.map((cat) => {
+          const isActive = selectedCategory === cat.value;
+          return (
+            <button
+              key={cat.value}
+              className={`filter-chip ${isActive ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.value)}
+              style={{
+                padding: '7px 14px',
+                fontFamily: 'var(--font-geist-mono), monospace',
+                fontSize: '11px',
+                fontWeight: 500,
+                borderRadius: '9999px',
+                border: isActive ? '1px solid #111' : '1px solid rgba(0, 0, 0, 0.15)',
+                background: isActive ? '#111' : 'rgba(255, 255, 255, 0.65)',
+                color: isActive ? '#ffffff' : '#111',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {cat.label} ({cat.count})
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Review Cards Feed */}
+      <div
+        className="review-cards-feed"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '16px',
+          marginTop: '10px',
+        }}
+      >
+        {visibleReviews.length === 0 ? (
+          <div className="empty-reviews-state" style={{ padding: '30px', textAlign: 'center', color: '#716F6A' }}>
+            <p>No community reports found in this category yet.</p>
+          </div>
+        ) : (
+          visibleReviews.map((rev) => {
+            const currentHelpful = helpfulVotes[rev.id] ?? rev.helpfulCount;
+            const hasVoted = votedIds.has(rev.id);
+            return (
+              <article
+                key={rev.id}
+                className="community-review-card"
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  borderRadius: '16px',
+                  padding: '18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                }}
+              >
+                <div
+                  className="card-top-row"
+                  style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}
+                >
+                  <div className="author-info" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
+                      className="author-avatar"
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: '#111',
+                        color: '#fff',
+                        fontFamily: 'var(--font-geist-mono), monospace',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {rev.initials}
+                    </div>
+                    <div className="author-text" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                      <div className="name-verified-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="author-name" style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>
+                          {rev.author}
+                        </span>
+                        {rev.verified && (
+                          <span
+                            className="verified-badge"
+                            style={{
+                              fontFamily: 'var(--font-geist-mono), monospace',
+                              fontSize: '8px',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: 'rgba(0, 0, 0, 0.05)',
+                              color: '#666',
+                              textTransform: 'uppercase',
+                              fontWeight: 700,
+                              border: '1px solid rgba(0, 0, 0, 0.08)',
+                            }}
+                          >
+                            VERIFIED
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="purchased-size"
+                        style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: '10px', color: '#716F6A' }}
+                      >
+                        Purchased {rev.purchasedSize}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="card-top-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      className="date-ago"
+                      style={{ fontFamily: 'var(--font-geist-mono), monospace', fontSize: '10px', color: '#8C8980' }}
+                    >
+                      {rev.dateAgo}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        className="delete-review-btn"
+                        title="Delete Review"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: '4px',
+                        }}
+                        onClick={() => {
+                          if (confirm(`Delete review from ${rev.author}?`)) {
+                            onDeleteReview(rev.id);
+                          }
+                        }}
+                      >
+                        <Trash2 />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="review-product-bar"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(0, 0, 0, 0.04)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <span className="product-title" style={{ fontSize: '12px', fontWeight: 700, color: '#111' }}>
+                    {rev.productName}
+                  </span>
+                  <span className="star-rating" style={{ fontSize: '11px', color: '#111', letterSpacing: '1px' }}>
+                    {'★'.repeat(rev.rating)}
+                  </span>
+                </div>
+
+                <p
+                  className="review-quote-body"
+                  style={{ fontSize: '13px', lineHeight: 1.5, color: '#222', margin: 0, fontWeight: 400 }}
+                >
+                  {rev.quote}
+                </p>
+
+                <div
+                  className="card-bottom-row"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '10px',
+                    borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+                    marginTop: 'auto',
+                    gap: '8px',
+                  }}
+                >
+                  <div className="fit-tags-group" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span
+                      className="fit-stats-tag"
+                      style={{
+                        fontFamily: 'var(--font-geist-mono), monospace',
+                        fontSize: '10px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(0, 0, 0, 0.04)',
+                        color: '#555',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {rev.stats}
+                    </span>
+                    <span
+                      className="fit-feeling-tag"
+                      style={{
+                        fontFamily: 'var(--font-geist-mono), monospace',
+                        fontSize: '10px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#065f46',
+                        fontWeight: 600,
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                      }}
+                    >
+                      {rev.fitRating}
+                    </span>
+                  </div>
+                  <button
+                    className={`helpful-vote-btn ${hasVoted ? 'voted' : ''}`}
+                    onClick={() => toggleHelpful(rev.id, rev.helpfulCount)}
+                    style={{
+                      fontFamily: 'var(--font-geist-mono), monospace',
+                      fontSize: '10px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: hasVoted ? '#111' : '#ffffff',
+                      border: '1px solid rgba(0, 0, 0, 0.15)',
+                      color: hasVoted ? '#ffffff' : '#555',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>Helpful</span>
+                    <span className="helpful-count" style={{ fontWeight: 700 }}>
+                      ({currentHelpful})
+                    </span>
+                  </button>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <footer
+        className="community-reviews-footer"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          alignItems: 'center',
+          paddingTop: '16px',
+        }}
+      >
+        <button
+          className="dark-button fit-check-cta"
+          onClick={() => setWriteModalOpen(true)}
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            textAlign: 'center',
+            padding: '14px 20px',
+            borderRadius: '9999px',
+            background: '#111',
+            color: '#fff',
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: '11px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          DROP YOUR FIT CHECK
+        </button>
+
+        {filteredReviews.length > 3 && (
+          <button
+            className="outline-button load-more-cta"
+            onClick={() => setShowAll(!showAll)}
+            style={{
+              width: '100%',
+              maxWidth: '420px',
+              textAlign: 'center',
+              padding: '14px 20px',
+              borderRadius: '9999px',
+              background: 'rgba(255, 255, 255, 0.7)',
+              color: '#111',
+              fontFamily: 'var(--font-geist-mono), monospace',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              border: '1px solid rgba(0, 0, 0, 0.2)',
+              cursor: 'pointer',
+            }}
+          >
+            {showAll ? 'SHOW LESS REPORTS' : `LOAD MORE REPORTS (${filteredReviews.length - 3})`}
+          </button>
+        )}
+
+        <div
+          className="post-purchase-note"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontFamily: 'var(--font-geist-mono), monospace',
+            fontSize: '10px',
+            color: '#716F6A',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
+          <span className="small-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8C8980' }} />
+          <p style={{ margin: 0 }}>ALL VERIFIED FIT CHECKS POST-PURCHASE VERIFIED</p>
+        </div>
+      </footer>
+
+      {/* User Fit Check Modal */}
+      {writeModalOpen && (
+        <div className="overlay modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setWriteModalOpen(false)}>
+          <aside className="modal review-form-modal">
+            <div className="panel-head">
+              <b>DROP YOUR FIT CHECK</b>
+              <button className="icon-button" onClick={() => setWriteModalOpen(false)}>
+                <X />
+              </button>
+            </div>
+            <form onSubmit={handleUserSubmit} className="write-review-form">
+              <label>
+                Your Full Name
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. Amaan Khan"
+                  value={userForm.author}
+                  onChange={(e) => setUserForm({ ...userForm, author: e.target.value })}
+                />
+              </label>
+
+              <div className="form-grid-2">
+                <label>
+                  Purchased Piece
+                  <select
+                    value={userForm.productName}
+                    onChange={(e) => setUserForm({ ...userForm, productName: e.target.value })}
+                  >
+                    {catalog.map((p) => (
+                      <option key={p.slug} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Size Worn
+                  <select
+                    value={userForm.purchasedSize}
+                    onChange={(e) => setUserForm({ ...userForm, purchasedSize: e.target.value })}
+                  >
+                    <option value="Size S">Size S</option>
+                    <option value="Size M">Size M</option>
+                    <option value="Size L">Size L</option>
+                    <option value="Size XL">Size XL</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-grid-2">
+                <label>
+                  Rating
+                  <select
+                    value={userForm.rating}
+                    onChange={(e) => setUserForm({ ...userForm, rating: Number(e.target.value) })}
+                  >
+                    <option value={5}>★★★★★ (5/5)</option>
+                    <option value={4}>★★★★☆ (4/5)</option>
+                    <option value={3}>★★★☆☆ (3/5)</option>
+                  </select>
+                </label>
+
+                <label>
+                  Fit Feedback
+                  <select
+                    value={userForm.fitRating}
+                    onChange={(e) => setUserForm({ ...userForm, fitRating: e.target.value })}
+                  >
+                    <option value="True to size">True to size</option>
+                    <option value="Relaxed drape">Relaxed drape</option>
+                    <option value="Boxy crop fit">Boxy crop fit</option>
+                    <option value="Overly structured">Overly structured</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Height & Weight (Fit Specs)
+                <input
+                  type="text"
+                  placeholder="e.g. 5'11&quot; · 78kg"
+                  value={userForm.stats}
+                  onChange={(e) => setUserForm({ ...userForm, stats: e.target.value })}
+                />
+              </label>
+
+              <label>
+                Your Honest Review / Fit Notes
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Tell us about fabric weight, collar structure, drape, wash durability..."
+                  value={userForm.quote}
+                  onChange={(e) => setUserForm({ ...userForm, quote: e.target.value })}
+                />
+              </label>
+
+              <button type="submit" className="dark-button full-width">
+                Submit Fit Check
+              </button>
+            </form>
+          </aside>
+        </div>
+      )}
+
+      {/* Non-Admin Fake Submit Confirmation Modal */}
+      {congratsModalOpen && (
+        <div className="overlay modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setCongratsModalOpen(false)}>
+          <aside className="modal congrats-modal-box">
+            <div className="congrats-icon-wrapper">
+              <CheckCircle2 />
+            </div>
+            <h3>CONGRATULATIONS!</h3>
+            <h4>YOUR FIT CHECK HAS BEEN SUBMITTED</h4>
+            <p>
+              Thank you for sharing your fit feedback! Your submission has been received and is queued for post-purchase community verification.
+            </p>
+            <span className="congrats-badge">VERIFICATION INDEX #2026-CHECK</span>
+            <button className="dark-button full-width" onClick={() => setCongratsModalOpen(false)}>
+              Back to Community Archive
+            </button>
+          </aside>
+        </div>
+      )}
+
+      {/* Admin Add Review Modal */}
+      {adminAddModalOpen && (
+        <div className="overlay modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setAdminAddModalOpen(false)}>
+          <aside className="modal review-form-modal">
+            <div className="panel-head">
+              <b>ADMIN: ADD COMMUNITY REVIEW</b>
+              <button className="icon-button" onClick={() => setAdminAddModalOpen(false)}>
+                <X />
+              </button>
+            </div>
+            <form onSubmit={handleAdminSubmit} className="write-review-form">
+              <label>
+                Customer / Author Name
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. Amaan K."
+                  value={adminForm.author}
+                  onChange={(e) => setAdminForm({ ...adminForm, author: e.target.value })}
+                />
+              </label>
+
+              <div className="form-grid-2">
+                <label>
+                  Product Name
+                  <select
+                    value={adminForm.productName}
+                    onChange={(e) => {
+                      const p = catalog.find((c) => c.name === e.target.value);
+                      setAdminForm({
+                        ...adminForm,
+                        productName: e.target.value,
+                        productSlug: p?.slug || 'concrete-box-tee',
+                      });
+                    }}
+                  >
+                    {catalog.map((p) => (
+                      <option key={p.slug} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Purchased Size
+                  <select
+                    value={adminForm.purchasedSize}
+                    onChange={(e) => setAdminForm({ ...adminForm, purchasedSize: e.target.value })}
+                  >
+                    <option value="Size S">Size S</option>
+                    <option value="Size M">Size M</option>
+                    <option value="Size L">Size L</option>
+                    <option value="Size XL">Size XL</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-grid-2">
+                <label>
+                  Rating
+                  <select
+                    value={adminForm.rating}
+                    onChange={(e) => setAdminForm({ ...adminForm, rating: Number(e.target.value) })}
+                  >
+                    <option value={5}>5 Stars (★★★★★)</option>
+                    <option value={4}>4 Stars (★★★★☆)</option>
+                    <option value={3}>3 Stars (★★★☆☆)</option>
+                  </select>
+                </label>
+
+                <label>
+                  Category Filter
+                  <select
+                    value={adminForm.category}
+                    onChange={(e) => setAdminForm({ ...adminForm, category: e.target.value })}
+                  >
+                    <option value="tees">tees</option>
+                    <option value="hoodies">hoodies</option>
+                    <option value="cargo">cargo</option>
+                    <option value="fit-pics">fit-pics</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-grid-2">
+                <label>
+                  Height & Weight
+                  <input
+                    type="text"
+                    value={adminForm.stats}
+                    onChange={(e) => setAdminForm({ ...adminForm, stats: e.target.value })}
+                  />
+                </label>
+
+                <label>
+                  Fit Assessment
+                  <input
+                    type="text"
+                    value={adminForm.fitRating}
+                    onChange={(e) => setAdminForm({ ...adminForm, fitRating: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Review Quote / Feedback
+                <textarea
+                  required
+                  rows={3}
+                  value={adminForm.quote}
+                  onChange={(e) => setAdminForm({ ...adminForm, quote: e.target.value })}
+                />
+              </label>
+
+              <button type="submit" className="dark-button full-width">
+                Publish Review to Live Site
+              </button>
+            </form>
+          </aside>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Home({
+  catalog,
+  sections,
+  reviews,
+  onAddReview,
+  onDeleteReview,
+  isAdmin = false,
+  collections = categories,
+}: {
+  catalog: Product[];
+  sections: ContentSection[];
+  reviews: Review[];
+  onAddReview: (r: Review) => void;
+  onDeleteReview: (id: string) => void;
+  isAdmin?: boolean;
+  collections?: Category[];
+}) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
   return (
     <main>
@@ -700,7 +1650,7 @@ function Home({ catalog, sections }: { catalog: Product[]; sections: ContentSect
           </div>
         </div>
         <div className="collection-grid">
-          {categories.map((c) => (
+          {collections.map((c) => (
             <a href={`/collections/${c.slug}`} key={c.slug}>
               <img src={c.image} alt="" />
               <span>
@@ -710,98 +1660,100 @@ function Home({ catalog, sections }: { catalog: Product[]; sections: ContentSect
           ))}
         </div>
       </section>}
-      {enabled('customer-reviews') && <section className="reviews section-shell">
-        <div>
-          <p className="eyebrow">Field reports / seeded demo reviews</p>
-          <h2>
-            Worn hard.
-            <br />
-            Rated honestly.
-          </h2>
-          <p className="review-score">
-            4.8 <span>★★★★★</span>
-          </p>
+      {enabled('customer-reviews') && (
+        <CommunityReviews
+          reviews={reviews}
+          onAddReview={onAddReview}
+          onDeleteReview={onDeleteReview}
+          isAdmin={isAdmin}
+          catalog={catalog}
+        />
+      )}
+      <section className="trust-strip" aria-label="Brand Guarantees & Trust Signals">
+        <div className="trust-card">
+          <div className="trust-card-main">
+            <div className="trust-icon-box">
+              <ShieldCheck className="trust-icon" />
+            </div>
+            <div>
+              <h3 className="trust-title">Secure Checkout</h3>
+              <p className="trust-desc">Protected 256-bit encrypted checkout</p>
+            </div>
+          </div>
+          <span className="trust-pill trust-pill-ssl">SSL Active</span>
         </div>
-        <div className="review-cards">
-          <blockquote>
-            “The weight is exactly right and the shoulder line sits clean.
-            Already ordered a second color.”
-            <cite>— Amaan K. / Verified demo order</cite>
-          </blockquote>
-          <blockquote>
-            “Packaging, fit, and fabric all feel considered. The cargo has
-            become my default.”<cite>— Noor R. / Verified demo order</cite>
-          </blockquote>
+
+        <div className="trust-card">
+          <div className="trust-card-main">
+            <div className="trust-icon-box">
+              <Truck className="trust-icon" />
+            </div>
+            <div>
+              <h3 className="trust-title">Fast Dispatch</h3>
+              <p className="trust-desc">Dispatched within 24h · 2–4 working days</p>
+            </div>
+          </div>
+          <span className="trust-pill">Air Express</span>
         </div>
-      </section>}
-      <section className="trust-strip">
-        <div>
-          <ShieldCheck />
-          <span>
-            Secure checkout<small>Protected order flow</small>
-          </span>
+
+        <div className="trust-card">
+          <div className="trust-card-main">
+            <div className="trust-icon-box">
+              <CreditCard className="trust-icon" />
+            </div>
+            <div>
+              <h3 className="trust-title">Flexible Payment</h3>
+              <p className="trust-desc">Cards, Apple Pay, or Cash on Delivery</p>
+            </div>
+          </div>
+          <span className="trust-pill trust-pill-black">0% Fee</span>
         </div>
-        <div>
-          <Truck />
-          <span>
-            Fast dispatch<small>2–5 working days</small>
-          </span>
-        </div>
-        <div>
-          <CreditCard />
-          <span>
-            Flexible payment<small>COD or bank transfer</small>
-          </span>
-        </div>
-        <div>
-          <PackageCheck />
-          <span>
-            Easy exchange<small>14-day size exchange</small>
-          </span>
+
+        <div className="trust-card">
+          <div className="trust-card-main">
+            <div className="trust-icon-box">
+              <PackageCheck className="trust-icon" />
+            </div>
+            <div>
+              <h3 className="trust-title">Easy Exchange</h3>
+              <p className="trust-desc">14-day hassle-free doorstep exchange</p>
+            </div>
+          </div>
+          <span className="trust-pill">Doorstep</span>
         </div>
       </section>
     </main>
   );
 }
 
-function CatalogView({ path, catalog }: { path: string; catalog: Product[] }) {
+function CatalogView({
+  path,
+  catalog,
+  collections = categories,
+}: {
+  path: string;
+  catalog: Product[];
+  collections?: Category[];
+}) {
   const pathSlug = path.split('/')[2];
-  const category = categories.find((c) => c.slug === pathSlug);
-  const [availability, setAvailability] = useState('all'),
-    [sort, setSort] = useState('featured'),
-    [selected, setSelected] = useState(category?.name || 'all'),
-    [max, setMax] = useState(500000);
+  const category = collections.find((c) => c.slug === pathSlug);
+  const defaultCategory = categories.find((c) => c.slug === pathSlug);
   const query =
     typeof window !== 'undefined'
       ? new URLSearchParams(location.search).get('q') || ''
       : '';
   const filtered = useMemo(
     () =>
-      catalog
-        .filter(
-          (p) =>
-            (selected === 'all' || p.category === selected) &&
-            (availability === 'all' ||
-              (availability === 'in' && p.stock > 0) ||
-              (availability === 'out' && p.stock === 0)) &&
-            p.price <= max &&
-            (query === '' ||
-              (p.name + p.category)
-                .toLowerCase()
-                .includes(query.toLowerCase())),
-        )
-        .sort((a, b) =>
-          sort === 'low'
-            ? a.price - b.price
-            : sort === 'high'
-              ? b.price - a.price
-              : sort === 'name'
-                ? a.name.localeCompare(b.name)
-                : sort === 'new'
-                  ? Number(b.newArrival) - Number(a.newArrival)
-                  : Number(b.featured) - Number(a.featured),
-        ),
-    [availability, sort, selected, max, query, catalog],
+      catalog.filter(
+        (p) =>
+          (!category ||
+            p.category === category.name ||
+            p.collection === category.name ||
+            (defaultCategory && (p.category === defaultCategory.name || p.collection === defaultCategory.name))) &&
+          (query === '' ||
+            (p.name + p.category).toLowerCase().includes(query.toLowerCase())),
+      ),
+    [category, defaultCategory, query, catalog],
   );
   return (
     <main className="catalog-page">
@@ -813,6 +1765,7 @@ function CatalogView({ path, catalog }: { path: string; catalog: Product[] }) {
               ? `Search: ${query}`
               : 'Search'
             : category?.name ||
+              defaultCategory?.name ||
               pathSlug?.replaceAll('-', ' ') ||
               'All collections'}
         </h1>
@@ -822,65 +1775,8 @@ function CatalogView({ path, catalog }: { path: string; catalog: Product[] }) {
             : 'Twenty-four original pieces across six core categories.'}
         </p>
       </div>
-      <div className="catalog-tools">
-        <div className="filter-row">
-          <label>
-            Category
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => (
-                <option key={c.slug}>{c.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Availability
-            <select
-              value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
-            >
-              <option value="all">All stock</option>
-              <option value="in">In stock</option>
-              <option value="out">Sold out</option>
-            </select>
-          </label>
-          <label>
-            Max price
-            <select
-              value={max}
-              onChange={(e) => setMax(Number(e.target.value))}
-            >
-              <option value="500000">Up to Rs. 5,000</option>
-              <option value="350000">Up to Rs. 3,500</option>
-              <option value="250000">Up to Rs. 2,500</option>
-            </select>
-          </label>
-        </div>
-        <label>
-          Sort
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="featured">Featured</option>
-            <option value="new">Newest</option>
-            <option value="low">Price: low to high</option>
-            <option value="high">Price: high to low</option>
-            <option value="name">Name</option>
-          </select>
-        </label>
-      </div>
       <div className="catalog-count">
-        {filtered.length} pieces{' '}
-        <button
-          onClick={() => {
-            setSelected('all');
-            setAvailability('all');
-            setMax(500000);
-          }}
-        >
-          Clear filters
-        </button>
+        {filtered.length} pieces
       </div>
       {filtered.length ? (
         <div className="catalog-grid">
@@ -892,17 +1788,7 @@ function CatalogView({ path, catalog }: { path: string; catalog: Product[] }) {
         <div className="empty-state catalog-empty">
           <Search />
           <h2>No pieces found</h2>
-          <p>Clear a filter or explore the complete archive.</p>
-          <button
-            className="dark-button"
-            onClick={() => {
-              setSelected('all');
-              setAvailability('all');
-              setMax(500000);
-            }}
-          >
-            Reset filters
-          </button>
+          <p>Explore the complete archive or check back for upcoming drops.</p>
         </div>
       )}
     </main>
@@ -919,17 +1805,18 @@ function ProductView({
   catalog: Product[];
 }) {
   const product = catalog.find((entry) => entry.slug === slug) || catalog[0];
+  const gallery = getProductImages(product);
   const [size, setSize] = useState(''),
     [color, setColor] = useState(product.colors[0]),
     [qty, setQty] = useState(1),
-    [image, setImage] = useState(product.image),
+    [image, setImage] = useState(gallery[0]),
     [error, setError] = useState(''),
     [chart, setChart] = useState(false);
   useEffect(() => {
     setSize('');
     setColor(product.colors[0]);
     setQty(1);
-    setImage(product.image);
+    setImage(getProductImages(product)[0]);
     setError('');
   }, [product.slug]);
   const submit = (buy = false) => {
@@ -944,25 +1831,23 @@ function ProductView({
     <main className="product-page">
       <div className="product-gallery">
         <div className="thumbs">
-          <button onClick={() => setImage(product.image)}>
-            <img src={product.image} alt="Front view" />
-          </button>
-          <button onClick={() => setImage(product.alternate)}>
-            <img src={product.alternate} alt="Alternate view" />
-          </button>
+          {gallery.map((galleryImage, index) => (
+            <button className={image === galleryImage ? 'active' : ''} onClick={() => setImage(galleryImage)} key={`${galleryImage}-${index}`} aria-label={`Show ${product.name} image ${index + 1}`}>
+              <img src={galleryImage} alt={`${product.name} view ${index + 1}`} />
+            </button>
+          ))}
         </div>
         <button
           className="main-media"
-          onClick={() =>
-            setImage(
-              image === product.image ? product.alternate : product.image,
-            )
-          }
-          aria-label="Show alternate product image"
+          onClick={() => setImage(gallery[(gallery.indexOf(image) + 1) % gallery.length])}
+          aria-label="Show next product image"
         >
-          <img src={image} alt={product.name} />
-          <span>Click to view alternate</span>
+          <img className="gallery-fade" key={image} src={image} alt={product.name} />
+          <span>Click for next view · {gallery.indexOf(image) + 1}/{gallery.length}</span>
         </button>
+        <div className="mobile-product-strip" aria-label={`${product.name} image gallery`}>
+          {gallery.map((galleryImage, index) => <img src={galleryImage} alt={`${product.name} view ${index + 1}`} key={`${galleryImage}-mobile-${index}`} />)}
+        </div>
       </div>
       <section className="product-info">
         <p className="eyebrow">
@@ -1762,9 +2647,19 @@ function AdminLogin() {
 function AdminView({
   catalog,
   onCatalogChange,
+  reviews,
+  onAddReview,
+  onDeleteReview,
+  collections,
+  onCollectionsChange,
 }: {
   catalog: Product[];
   onCatalogChange: (products: Product[]) => void;
+  reviews: Review[];
+  onAddReview: (review: Review) => void;
+  onDeleteReview: (id: string) => void;
+  collections: Category[];
+  onCollectionsChange: (collections: Category[]) => void;
 }) {
   const [allowed, setAllowed] = useState<boolean | null>(null),
     [tab, setTab] = useState('dashboard'),
@@ -1780,19 +2675,20 @@ function AdminView({
 
   const loadAdminData = async () => {
     try {
-      const [productResponse, publicResponse, orderResponse, settingsResponse, contentResponse] = await Promise.all([
+      const [productResponse, publicResponse, orderResponse, settingsResponse, contentResponse, collectionResponse] = await Promise.all([
         fetch('/api/admin/products'),
         fetch('/api/products'),
         fetch('/api/admin/orders'),
         fetch('/api/admin/settings'),
         fetch('/api/admin/content'),
+        fetch('/api/admin/collections'),
       ]);
       if (productResponse.status === 401 || orderResponse.status === 401) {
         sessionStorage.removeItem('zyra-admin-demo');
         setAllowed(false);
         return;
       }
-      if (!productResponse.ok || !publicResponse.ok || !orderResponse.ok || !settingsResponse.ok || !contentResponse.ok) {
+      if (!productResponse.ok || !publicResponse.ok || !orderResponse.ok || !settingsResponse.ok || !contentResponse.ok || !collectionResponse.ok) {
         throw new Error('Admin data could not be loaded.');
       }
       setAdminCatalog(await productResponse.json());
@@ -1800,6 +2696,7 @@ function AdminView({
       setOrders(await orderResponse.json());
       setSettings(await settingsResponse.json());
       setSections(await contentResponse.json());
+      onCollectionsChange(await collectionResponse.json());
     } catch (loadError) {
       setAdminError(loadError instanceof Error ? loadError.message : 'Admin data could not be loaded.');
     }
@@ -1884,7 +2781,7 @@ function AdminView({
           ZYRA<span>®</span>
         </a>
         <p className="eyebrow">Commerce OS</p>
-        {['dashboard', 'products', 'orders', 'content', 'settings'].map((x) => (
+        {['dashboard', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
           <button
             key={x}
             className={tab === x ? 'active' : ''}
@@ -1942,6 +2839,15 @@ function AdminView({
         )}
         {tab === 'products' && (
           <section className="admin-products-section">
+            <CollectionNameEditor
+              collections={collections}
+              onSaved={async (nextCollections, message) => {
+                onCollectionsChange(nextCollections);
+                await loadAdminData();
+                setSaved(message);
+              }}
+              onError={setAdminError}
+            />
             <div className="admin-section-head">
               <div><h2>Product catalog</h2><p>Add products, edit details, control visibility and adjust stock.</p></div>
               <button className="dark-button" onClick={() => { setEditing(null); setProductFormOpen(true); }}><Plus /> Add product</button>
@@ -1949,6 +2855,7 @@ function AdminView({
             {productFormOpen && (
               <ProductEditor
                 product={editing}
+                collections={collections}
                 onCancel={() => { setEditing(null); setProductFormOpen(false); }}
                 onSaved={async (message) => { await loadAdminData(); setSaved(message); setEditing(null); setProductFormOpen(false); }}
               />
@@ -1998,6 +2905,23 @@ function AdminView({
           </section>
         )}
         {tab === 'orders' && <AdminOrders orders={orders} onStatus={updateOrder} onSelect={setSelectedOrder} />}
+        {tab === 'reviews' && (
+          <section className="admin-products-section">
+            <div className="admin-section-head">
+              <div>
+                <h2>Community Reviews</h2>
+                <p>Manage customer reviews, add new verified fit checks, or remove reports.</p>
+              </div>
+            </div>
+            <CommunityReviews
+              reviews={reviews}
+              onAddReview={onAddReview}
+              onDeleteReview={onDeleteReview}
+              isAdmin={true}
+              catalog={catalog}
+            />
+          </section>
+        )}
         {tab === 'content' && (
           <div className="admin-form">
             <h2>Homepage content</h2>
@@ -2052,6 +2976,54 @@ function AdminView({
               Bank transfer instructions
               <textarea value={settings.bankTransferInstructions} onChange={(event) => setSettings({ ...settings, bankTransferInstructions: event.target.value })} />
             </label>
+            <h3 style={{ marginTop: '20px', marginBottom: '8px', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Social Media Links (Footer Icons)
+            </h3>
+            <label>
+              Instagram URL
+              <input
+                type="url"
+                placeholder="https://instagram.com/zyrastore"
+                value={settings.instagramUrl || ''}
+                onChange={(event) => setSettings({ ...settings, instagramUrl: event.target.value })}
+              />
+            </label>
+            <label>
+              Facebook URL
+              <input
+                type="url"
+                placeholder="https://facebook.com/zyrastore"
+                value={settings.facebookUrl || ''}
+                onChange={(event) => setSettings({ ...settings, facebookUrl: event.target.value })}
+              />
+            </label>
+            <label>
+              YouTube URL
+              <input
+                type="url"
+                placeholder="https://youtube.com/@zyrastore"
+                value={settings.youtubeUrl || ''}
+                onChange={(event) => setSettings({ ...settings, youtubeUrl: event.target.value })}
+              />
+            </label>
+            <label>
+              TikTok URL
+              <input
+                type="url"
+                placeholder="https://tiktok.com/@zyrastore"
+                value={settings.tiktokUrl || ''}
+                onChange={(event) => setSettings({ ...settings, tiktokUrl: event.target.value })}
+              />
+            </label>
+            <label>
+              WhatsApp Link / Number
+              <input
+                type="text"
+                placeholder="https://wa.me/923000000000"
+                value={settings.whatsappUrl || ''}
+                onChange={(event) => setSettings({ ...settings, whatsappUrl: event.target.value })}
+              />
+            </label>
             <button className="dark-button">Save settings</button>
             {saved && <p className="success">{saved}</p>}
           </form>
@@ -2063,24 +3035,124 @@ function AdminView({
   );
 }
 
+function CollectionNameEditor({
+  collections,
+  onSaved,
+  onError,
+}: {
+  collections: Category[];
+  onSaved: (collections: Category[], message: string) => Promise<void> | void;
+  onError: (message: string) => void;
+}) {
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [image, setImage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const startEditing = (collection: Category) => {
+    setEditingSlug(collection.slug);
+    setName(collection.name);
+    setImage(collection.image);
+    onError('');
+  };
+
+  const save = async (collection: Category) => {
+    const nextName = name.trim();
+    if (!nextName || !image) {
+      onError('Collection name and cover image are required.');
+      return;
+    }
+    if (nextName === collection.name && image === collection.image) {
+      setEditingSlug(null);
+      return;
+    }
+    setBusy(true);
+    onError('');
+    try {
+      const response = await fetch('/api/admin/collections', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: collection.slug, name: nextName, image }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Collection could not be renamed.');
+      await onSaved(result, `${nextName} collection updated.`);
+      setEditingSlug(null);
+    } catch (saveError) {
+      onError(saveError instanceof Error ? saveError.message : 'Collection could not be renamed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="admin-collection-manager">
+      <div className="admin-section-head">
+        <div>
+          <h2>Store collections</h2>
+          <p>Rename a collection here. Its products, navigation and storefront heading update together.</p>
+        </div>
+      </div>
+      <div className="admin-collection-list">
+        {collections.map((collection) => (
+          <div className={`admin-collection-row ${editingSlug === collection.slug ? 'editing' : ''}`} key={collection.slug}>
+            <img src={collection.image} alt="" />
+            <span>
+              <small>/{collection.slug}</small>
+              {editingSlug === collection.slug ? (
+                <input
+                  maxLength={80}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void save(collection);
+                    }
+                    if (event.key === 'Escape') setEditingSlug(null);
+                  }}
+                  aria-label={`New name for ${collection.name}`}
+                />
+              ) : (
+                <b>{collection.name}</b>
+              )}
+            </span>
+            {editingSlug === collection.slug ? (
+              <span className="admin-actions">
+                <button disabled={busy} onClick={() => void save(collection)}>{busy ? 'Saving…' : 'Save'}</button>
+                <button disabled={busy} onClick={() => setEditingSlug(null)}>Cancel</button>
+              </span>
+            ) : (
+              <button className="outline-button" onClick={() => startEditing(collection)}><Pencil /> Edit</button>
+            )}
+            {editingSlug === collection.slug && <ImageUploader label="Collection cover image" value={image} onChange={setImage} onError={onError} scope="collection" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProductEditor({
   product,
+  collections,
   onCancel,
   onSaved,
 }: {
   product: Product | null;
+  collections: Category[];
   onCancel: () => void;
   onSaved: (message: string) => void;
 }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [primaryImage, setPrimaryImage] = useState(product?.image || ''),
-    [alternateImage, setAlternateImage] = useState(product?.alternate || '');
+    [productImages, setProductImages] = useState(() => [...(product ? getProductImages(product) : []), '', '', ''].slice(0, 4));
   return (
     <form className="admin-product-form" onSubmit={async (event) => {
       event.preventDefault();
-      if (!primaryImage || !alternateImage) {
-        setError('Upload both primary and alternate product images.');
+      const images = productImages.filter(Boolean);
+      if (images.length < 1 || images.length > 4) {
+        setError('Upload at least 1 and up to 4 product images.');
         return;
       }
       setBusy(true);
@@ -2099,8 +3171,9 @@ function ProductEditor({
         stock: Number(data.get('stock')),
         colors: String(data.get('colors') || '').split(',').map((value) => value.trim()).filter(Boolean),
         sizes: String(data.get('sizes') || '').split(',').map((value) => value.trim()).filter(Boolean),
-        image: primaryImage,
-        alternate: alternateImage,
+        image: images[0],
+        alternate: images[1] || images[0],
+        images,
         description: String(data.get('description') || ''),
         featured: data.get('featured') === 'on',
         newArrival: data.get('newArrival') === 'on',
@@ -2121,15 +3194,22 @@ function ProductEditor({
       <div className="form-grid">
         <label>Name<input name="name" required defaultValue={product?.name} /></label>
         <label>URL slug<input name="slug" required pattern="[a-z0-9-]+" defaultValue={product?.slug} placeholder="midnight-tee" /></label>
-        <label>Category<select name="category" defaultValue={product?.category || categories[0].name}>{categories.map((category) => <option key={category.slug}>{category.name}</option>)}</select></label>
+        <label>Category<select name="category" defaultValue={product?.category || collections[0]?.name || categories[0].name}>{collections.map((category) => <option key={category.slug}>{category.name}</option>)}</select></label>
         <label>Collection<input name="collection" required defaultValue={product?.collection || 'After Hours'} /></label>
         <label>Price (PKR)<input name="price" required type="number" min="0" step="1" defaultValue={product ? product.price / 100 : ''} /></label>
         <label>Compare price (PKR)<input name="compareAt" type="number" min="0" step="1" defaultValue={product?.compareAt ? product.compareAt / 100 : ''} /></label>
         <label>Stock<input name="stock" required type="number" min="0" step="1" defaultValue={product?.stock ?? 0} /></label>
         <label>Sizes, comma separated<input name="sizes" required defaultValue={product?.sizes.join(', ') || 'S, M, L, XL'} /></label>
         <label className="wide">Colors, comma separated<input name="colors" required defaultValue={product?.colors.join(', ') || 'Obsidian, Bone'} /></label>
-        <ImageUploader label="Primary product photo" value={primaryImage} onChange={setPrimaryImage} onError={setError} />
-        <ImageUploader label="Alternate product photo" value={alternateImage} onChange={setAlternateImage} onError={setError} />
+        {productImages.map((productImage, index) => (
+          <ImageUploader
+            key={index}
+            label={`Product photo ${index + 1}${index === 0 ? ' (required)' : ' (optional)'}`}
+            value={productImage}
+            onChange={(value) => setProductImages((current) => current.map((entry, entryIndex) => entryIndex === index ? value : entry))}
+            onError={setError}
+          />
+        ))}
         <label className="wide">Description<textarea name="description" required rows={4} defaultValue={product?.description} /></label>
       </div>
       <div className="admin-checks"><label><input type="checkbox" name="featured" defaultChecked={product?.featured} /> Featured</label><label><input type="checkbox" name="newArrival" defaultChecked={product?.newArrival ?? true} /> New arrival</label></div>
@@ -2144,11 +3224,13 @@ function ImageUploader({
   value,
   onChange,
   onError,
+  scope = 'product',
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   onError: (value: string) => void;
+  scope?: 'product' | 'collection';
 }) {
   const [uploading, setUploading] = useState(false);
   return (
@@ -2174,6 +3256,7 @@ function ImageUploader({
             try {
               const form = new FormData();
               form.append('file', file);
+              form.append('scope', scope);
               const response = await fetch('/api/admin/uploads', { method: 'POST', body: form });
               const result = await response.json();
               if (!response.ok) throw new Error(result.error || 'Image could not be uploaded.');
@@ -2253,58 +3336,781 @@ function InfoPage({ path }: { path: string }) {
   );
 }
 
-function Footer() {
+function Footer({ settings, collections = categories }: { settings?: StoreSettings; collections?: Category[] }) {
+  const [activeAccordion, setActiveAccordion] = useState<string | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterState, setNewsletterState] = useState<'idle' | 'success'>('idle');
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleAccordion = (key: string) => {
+    setActiveAccordion((prev) => (prev === key ? null : key));
+  };
+
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail) return;
+    setNewsletterState('success');
+    setTimeout(() => {
+      setNewsletterEmail('');
+      setTimeout(() => {
+        setNewsletterState('idle');
+      }, 2500);
+    }, 1000);
+  };
+
+  const instagram = settings?.instagramUrl || 'https://instagram.com';
+  const facebook = settings?.facebookUrl || 'https://facebook.com';
+  const youtube = settings?.youtubeUrl || 'https://youtube.com';
+  const tiktok = settings?.tiktokUrl || 'https://tiktok.com';
+  const whatsapp = settings?.whatsappUrl || 'https://wa.me/923000000000';
+
+  const shopLinks: Array<{ label: string; href: string; highlight?: boolean }> = [
+    ...collections.map((collection) => ({ label: collection.name, href: `/collections/${collection.slug}` })),
+    { label: 'View complete archive', href: '/collections', highlight: true },
+  ];
+
+  const infoLinks = [
+    { label: 'Live Order Dispatch Tracking', href: '/track-order' },
+    { label: 'Shipping & Customs Guidelines', href: '/pages/shipping' },
+    { label: 'Hassle-Free Return & Exchange', href: '/pages/returns' },
+    { label: 'Streetwear Sizing & Fit Guide', href: '/pages/faq' },
+    { label: 'Garment Care & Longevity', href: '/pages/contact' },
+    { label: 'WhatsApp & Concierge Studio', href: '/pages/contact' },
+  ];
+
+  const legalLinks = [
+    { label: 'Authenticity Verification', href: '/pages/privacy' },
+    { label: 'Terms of Dispatch & Sale', href: '/pages/terms' },
+    { label: 'Data Privacy Statement', href: '/pages/privacy' },
+    { label: 'IP & Trademark Protection', href: '/pages/terms' },
+  ];
+
   return (
-    <footer className="footer">
-      <div className="footer-mission">
-        <p className="eyebrow">Our mission</p>
-        <h2>
-          Make fewer pieces.
-          <br />
-          Make them matter.
-        </h2>
-        <p>
-          ZYRA is an independent demo streetwear label built around proportion,
-          utility and the restless energy of Karachi.
-        </p>
-      </div>
-      <div>
-        <b>SHOP</b>
-        {categories.slice(0, 5).map((c) => (
-          <a key={c.slug} href={`/collections/${c.slug}`}>
-            {c.name}
-          </a>
-        ))}
-      </div>
-      <div>
-        <b>INFO</b>
-        {['Shipping', 'Returns', 'FAQ', 'Contact', 'Privacy', 'Terms'].map(
-          (x) => (
-            <a key={x} href={`/pages/${x.toLowerCase()}`}>
-              {x}
-            </a>
-          ),
-        )}
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const button = e.currentTarget.querySelector('button');
-          if (button) button.textContent = 'Subscribed ✓';
+    <footer
+      style={{
+        width: '100%',
+        backgroundColor: '#070707',
+        color: '#eae8e3',
+        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        paddingTop: '48px',
+        paddingBottom: '32px',
+        overflow: 'hidden',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+      data-purpose="main-brand-footer"
+    >
+      <div
+        style={{
+          maxWidth: isDesktop ? '1140px' : '480px',
+          margin: '0 auto',
+          padding: '0 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'stretch',
         }}
       >
-        <b>PRIVATE DISPATCH</b>
-        <p>First access to drops, studio notes and restocks.</p>
-        <label className="newsletter">
-          <span className="sr-only">Email address</span>
-          <input required type="email" placeholder="EMAIL ADDRESS" />
-          <button>JOIN ↗</button>
-        </label>
-      </form>
-      <div className="footer-base">
-        <span>© 2026 ZYRA / DEMO COMMERCE</span>
-        <span>KARACHI, PAKISTAN</span>
-        <span>COD · BANK TRANSFER · SECURE CHECKOUT</span>
+        {/* Brand Manifesto & Statement */}
+        <section
+          style={{
+            marginBottom: '48px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '4px 12px',
+              borderRadius: '9999px',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              marginBottom: '16px',
+            }}
+          >
+            <span style={{ fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#d4d4d4', fontWeight: 500 }}>
+              Collection Archive
+            </span>
+          </div>
+          <h2
+            style={{
+              fontSize: 'clamp(28px, 4vw, 38px)',
+              lineHeight: 1.05,
+              fontWeight: 900,
+              letterSpacing: '-0.04em',
+              color: '#ffffff',
+              textTransform: 'uppercase',
+              marginBottom: '16px',
+            }}
+          >
+            MAKE FEWER PIECES.
+            <br />
+            <span style={{ color: '#a3a3a3' }}>MAKE THEM MATTER.</span>
+          </h2>
+          <p
+            style={{
+              fontSize: '12px',
+              lineHeight: 1.6,
+              color: '#a3a3a3',
+              fontWeight: 400,
+              maxWidth: '360px',
+              margin: '0 auto',
+            }}
+          >
+            ZYRA is an independent streetwear atelier rooted in Karachi. Built on heavyweight silhouettes, utilitarian cuts, and uncompromising craft.
+          </p>
+        </section>
+
+        {/* Modern Gen Z Newsletter / Secret Drop Access */}
+        <section
+          style={{
+            maxWidth: isDesktop ? '600px' : '100%',
+            width: '100%',
+            margin: '0 auto 48px auto',
+            padding: '20px',
+            borderRadius: '16px',
+            backgroundColor: 'rgba(23, 23, 23, 0.6)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxSizing: 'border-box',
+          }}
+          data-purpose="newsletter-dispatch"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 0 8px #ffffff',
+                }}
+              />
+              <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#ffffff' }}>
+                Private Drops & Archive Access
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                padding: '2px 10px',
+                borderRadius: '9999px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#d4d4d4',
+                fontWeight: 500,
+              }}
+            >
+              VIP Access
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '0 0 16px 0' }}>
+            Never miss a stealth drop. Backroom restocks, secret sample sales & early vault keys.
+          </p>
+          <form onSubmit={handleNewsletterSubmit} style={{ position: 'relative', marginBottom: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                padding: '6px',
+              }}
+            >
+              <input
+                required
+                type="text"
+                placeholder="ENTER EMAIL OR MOBILE"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  letterSpacing: '0.05em',
+                  color: '#ffffff',
+                  textTransform: 'uppercase',
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: newsletterState === 'success' ? '#34d399' : '#ffffff',
+                  color: '#000000',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  border: 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexShrink: 0,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>{newsletterState === 'success' ? 'ADDED' : 'JOIN'}</span>
+                {newsletterState !== 'success' && <ArrowRight style={{ width: '14px', height: '14px' }} />}
+              </button>
+            </div>
+            {newsletterState === 'success' && (
+              <p
+                style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.05em',
+                  color: '#34d399',
+                  marginTop: '8px',
+                  textAlign: 'center',
+                  fontWeight: 500,
+                }}
+              >
+                CONFIRMED: DISPATCH PROTOCOL ACTIVATED.
+              </p>
+            )}
+          </form>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              textAlign: 'center',
+              paddingTop: '8px',
+              fontSize: '10px',
+              color: '#a3a3a3',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              fontWeight: 500,
+            }}
+          >
+            <span>Zero Spam</span>
+            <span>•</span>
+            <span>Exclusive Access</span>
+            <span>•</span>
+            <span>Cancel Anytime</span>
+          </div>
+        </section>
+
+        {/* Quick Links: Accordion on Mobile / Separate Columns on Desktop */}
+        <section
+          style={{
+            marginBottom: '48px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            paddingTop: isDesktop ? '32px' : '0',
+          }}
+          data-purpose="links-section"
+        >
+          {isDesktop ? (
+            /* Desktop View: 3 Separate Columns Side-by-Side (Left-Aligned) */
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '48px',
+                textAlign: 'left',
+              }}
+            >
+              {/* Column 1: SHOP */}
+              <div>
+                <h3
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: '#ffffff',
+                    marginBottom: '16px',
+                    marginTop: 0,
+                  }}
+                >
+                  Shop Collections
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {shopLinks.map((item) => (
+                    <li key={item.label}>
+                      <a
+                        href={item.href}
+                        style={{
+                          fontSize: '12px',
+                          color: item.highlight ? '#ffffff' : '#a3a3a3',
+                          fontWeight: item.highlight ? 700 : 400,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          textDecoration: 'none',
+                          transition: 'color 0.15s ease',
+                        }}
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Column 2: CLIENT SERVICES */}
+              <div>
+                <h3
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: '#ffffff',
+                    marginBottom: '16px',
+                    marginTop: 0,
+                  }}
+                >
+                  Client Services
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {infoLinks.map((item) => (
+                    <li key={item.label}>
+                      <a
+                        href={item.href}
+                        style={{
+                          fontSize: '12px',
+                          color: '#a3a3a3',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          textDecoration: 'none',
+                          transition: 'color 0.15s ease',
+                        }}
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Column 3: POLICIES & VERIFICATION */}
+              <div>
+                <h3
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: '#ffffff',
+                    marginBottom: '16px',
+                    marginTop: 0,
+                  }}
+                >
+                  Policies & Verification
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {legalLinks.map((item) => (
+                    <li key={item.label}>
+                      <a
+                        href={item.href}
+                        style={{
+                          fontSize: '12px',
+                          color: '#a3a3a3',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          textDecoration: 'none',
+                          transition: 'color 0.15s ease',
+                        }}
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            /* Mobile View: Centered Accordions */
+            <div style={{ textAlign: 'center' }}>
+              {/* Accordion 1: SHOP */}
+              <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion('shop')}
+                  style={{
+                    width: '100%',
+                    padding: '16px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#e5e5e5',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#e5e5e5' }}>
+                    Shop Collections
+                  </span>
+                  <span style={{ fontSize: '16px', fontWeight: 300, color: '#a3a3a3', transition: 'transform 0.3s ease', transform: activeAccordion === 'shop' ? 'rotate(45deg)' : 'none' }}>
+                    +
+                  </span>
+                </button>
+                {activeAccordion === 'shop' && (
+                  <div style={{ paddingBottom: '16px' }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                      {shopLinks.map((item) => (
+                        <li key={item.label}>
+                          <a
+                            href={item.href}
+                            style={{
+                              fontSize: '12px',
+                              color: item.highlight ? '#ffffff' : '#a3a3a3',
+                              fontWeight: item.highlight ? 700 : 400,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 2: CLIENT CARE */}
+              <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion('info')}
+                  style={{
+                    width: '100%',
+                    padding: '16px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#e5e5e5',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#e5e5e5' }}>
+                    Client Services
+                  </span>
+                  <span style={{ fontSize: '16px', fontWeight: 300, color: '#a3a3a3', transition: 'transform 0.3s ease', transform: activeAccordion === 'info' ? 'rotate(45deg)' : 'none' }}>
+                    +
+                  </span>
+                </button>
+                {activeAccordion === 'info' && (
+                  <div style={{ paddingBottom: '16px' }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                      {infoLinks.map((item) => (
+                        <li key={item.label}>
+                          <a
+                            href={item.href}
+                            style={{
+                              fontSize: '12px',
+                              color: '#a3a3a3',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 3: LEGAL & POLICIES */}
+              <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion('legal')}
+                  style={{
+                    width: '100%',
+                    padding: '16px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#e5e5e5',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#e5e5e5' }}>
+                    Policies & Verification
+                  </span>
+                  <span style={{ fontSize: '16px', fontWeight: 300, color: '#a3a3a3', transition: 'transform 0.3s ease', transform: activeAccordion === 'legal' ? 'rotate(45deg)' : 'none' }}>
+                    +
+                  </span>
+                </button>
+                {activeAccordion === 'legal' && (
+                  <div style={{ paddingBottom: '16px' }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                      {legalLinks.map((item) => (
+                        <li key={item.label}>
+                          <a
+                            href={item.href}
+                            style={{
+                              fontSize: '12px',
+                              color: '#a3a3a3',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Social Media Links Section */}
+        <section style={{ marginBottom: '40px', textAlign: 'center' }} data-purpose="social-links">
+          <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a3a3a3', marginBottom: '20px', fontWeight: 700 }}>
+            Connect With The Subculture
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', color: '#d4d4d4' }}>
+            {instagram && (
+              <a
+                aria-label="Instagram"
+                href={instagram}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                </svg>
+              </a>
+            )}
+            {facebook && (
+              <a
+                aria-label="Facebook"
+                href={facebook}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+              </a>
+            )}
+            {youtube && (
+              <a
+                aria-label="YouTube"
+                href={youtube}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                </svg>
+              </a>
+            )}
+            {tiktok && (
+              <a
+                aria-label="TikTok"
+                href={tiktok}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 3 15.68 6.34 6.34 0 0 0 9.34 22a6.34 6.34 0 0 0 6.34-6.34V9.05a8.27 8.27 0 0 0 4.67 1.43V7.03a4.85 4.85 0 0 1-.76-.34z" />
+                </svg>
+              </a>
+            )}
+            {whatsapp && (
+              <a
+                aria-label="WhatsApp"
+                href={whatsapp}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <svg style={{ width: '18px', height: '18px' }} fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.461c-1.776 0-3.517-.476-5.044-1.38l-.362-.215-3.748.983.999-3.655-.236-.375a10.024 10.024 0 0 1-1.536-5.385c0-5.556 4.52-10.076 10.078-10.076 2.69 0 5.219 1.047 7.121 2.95 1.902 1.903 2.948 4.433 2.947 7.124 0 5.558-4.522 10.078-10.079 10.078" />
+                </svg>
+              </a>
+            )}
+          </div>
+        </section>
+
+        {/* Payment & Security Badges */}
+        <section
+          style={{
+            marginBottom: '40px',
+            padding: '16px 12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: '12px',
+            textAlign: 'center',
+          }}
+          data-purpose="payment-guarantees"
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '10px',
+              color: '#d4d4d4',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
+              Cash on Delivery
+            </span>
+            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
+              Online Bank Transfer
+            </span>
+            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
+              Visa / Mastercard
+            </span>
+            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
+              Apple Pay
+            </span>
+            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.25)', borderRadius: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#ffffff', fontWeight: 500 }}>
+              Encrypted Checkout
+            </span>
+          </div>
+        </section>
+
+        {/* Back to Top Button */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            style={{
+              fontSize: '10px',
+              letterSpacing: '0.15em',
+              color: '#a3a3a3',
+              textTransform: 'uppercase',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 20px',
+              borderRadius: '9999px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            <span>Back to Top</span>
+            <span style={{ fontSize: '12px' }}>↑</span>
+          </button>
+        </div>
+
+        {/* Sub-footer Legal Meta Bar */}
+        <section
+          style={{
+            paddingTop: '24px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            flexDirection: isDesktop ? 'row' : 'column',
+            justifyContent: isDesktop ? 'space-between' : 'center',
+            alignItems: 'center',
+            gap: '8px',
+            textAlign: isDesktop ? 'left' : 'center',
+          }}
+          data-purpose="legal-bottom-bar"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
+            <span>© 2026 Zyra Archive Lab</span>
+            <span>•</span>
+            <span>Karachi, PK</span>
+          </div>
+          <p style={{ fontSize: '9px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#737373', margin: 0, fontWeight: 400 }}>
+            All images & silhouettes protected under creative property rights
+          </p>
+        </section>
       </div>
     </footer>
   );

@@ -1,4 +1,4 @@
-import type { Product } from './catalog';
+import type { Category, Product } from './catalog';
 import { getSupabaseAdmin } from './supabase-server';
 
 export type StoreOrder = {
@@ -21,15 +21,40 @@ export type StoreSettings = {
   freeShippingThreshold: number;
   flatShipping: number;
   bankTransferInstructions: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  tiktokUrl?: string;
+  whatsappUrl?: string;
 };
 
 export type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 
+export async function getCollections({ includeInactive = false } = {}): Promise<Category[]> {
+  let query = getSupabaseAdmin().from('store_collections').select('slug,name,image,active').order('sort_order');
+  if (!includeInactive) query = query.eq('active', true);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => ({ slug: row.slug, name: row.name, image: row.image }));
+}
+
+export async function updateCollection(slug: string, name: string, image: string, actorEmail: string) {
+  const { error } = await getSupabaseAdmin().rpc('admin_update_collection', {
+    p_slug: slug,
+    p_name: name,
+    p_image: image,
+    p_actor_email: actorEmail,
+  });
+  if (error) throw new Error(error.message);
+}
+
 function productFromRow(row: Record<string, unknown>): Product {
+  const storedImages = Array.isArray(row.images) ? row.images.map(String).filter(Boolean) : [];
+  const images = storedImages.length ? storedImages : [String(row.image), String(row.alternate)].filter(Boolean);
   return {
     slug: String(row.slug), name: String(row.name), category: String(row.category), collection: String(row.collection),
     price: Number(row.price), compareAt: row.compare_at == null ? undefined : Number(row.compare_at), image: String(row.image),
-    alternate: String(row.alternate), rating: Number(row.rating), reviews: Number(row.reviews), stock: Number(row.stock),
+    alternate: String(row.alternate), images, rating: Number(row.rating), reviews: Number(row.reviews), stock: Number(row.stock),
     colors: row.colors as string[], sizes: row.sizes as string[], featured: Boolean(row.featured), newArrival: Boolean(row.new_arrival),
     active: Boolean(row.active), description: String(row.description),
   };
@@ -125,8 +150,18 @@ export async function updateOrderStatus(number: string, status: string, actorEma
 export async function getStoreSettings(): Promise<StoreSettings> {
   const { data, error } = await getSupabaseAdmin().from('store_settings').select('*').eq('singleton', true).single();
   if (error) throw new Error(error.message);
-  return { storeName: data.store_name, supportEmail: data.support_email, freeShippingThreshold: data.free_shipping_threshold,
-    flatShipping: data.flat_shipping, bankTransferInstructions: data.bank_transfer_instructions };
+  return {
+    storeName: data.store_name,
+    supportEmail: data.support_email,
+    freeShippingThreshold: data.free_shipping_threshold,
+    flatShipping: data.flat_shipping,
+    bankTransferInstructions: data.bank_transfer_instructions,
+    instagramUrl: data.instagram_url || 'https://instagram.com',
+    facebookUrl: data.facebook_url || 'https://facebook.com',
+    youtubeUrl: data.youtube_url || 'https://youtube.com',
+    tiktokUrl: data.tiktok_url || 'https://tiktok.com',
+    whatsappUrl: data.whatsapp_url || 'https://wa.me/923000000000',
+  };
 }
 
 export async function updateStoreSettings(settings: StoreSettings, actorEmail: string) {
