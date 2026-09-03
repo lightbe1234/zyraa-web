@@ -1964,6 +1964,55 @@ button:focus-visible {
 .admin-product-form textarea {
   resize: vertical;
 }
+.admin-image-upload {
+  grid-column: span 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font: 10px var(--font-geist-mono);
+  text-transform: uppercase;
+}
+.admin-image-preview {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #dedbd3;
+}
+.admin-image-preview img {
+  width: 100%;
+  height: 260px;
+  display: block;
+  object-fit: cover;
+}
+.admin-image-preview .outline-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: var(--paper);
+}
+.admin-file-button {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.admin-file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.admin-image-upload > small {
+  color: var(--muted);
+  text-transform: none;
+}
 .admin-checks,
 .admin-form-actions {
   margin-top: 18px;
@@ -2371,6 +2420,9 @@ button:focus-visible {
   }
   .admin-product-form {
     padding: 18px;
+  }
+  .admin-image-upload {
+    grid-column: 1 / -1;
   }
   .order-detail {
     padding-inline: 20px;

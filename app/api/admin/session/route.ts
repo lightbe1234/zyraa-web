@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     if (!(await consumeRateLimit(request, 'admin-login', 8, 900))) return Response.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
     const body = (await request.json()) as { email?: string; password?: string };
     if (!/^\S+@\S+\.\S+$/.test(body.email || '') || (body.password?.length || 0) < 8) {
-      return Response.json({ error: 'Valid demo credentials required.' }, { status: 400 });
+      return Response.json({ error: 'Valid admin credentials required.' }, { status: 400 });
     }
     if (!verifyAdminCredentials(body.email || '', body.password || '')) {
       return Response.json({ error: 'Invalid admin credentials.' }, { status: 401 });

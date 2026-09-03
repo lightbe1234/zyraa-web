@@ -1,5 +1,4 @@
-import { products, productBySlug, type Product } from './catalog';
-import { priceCartWithCatalog } from './commerce';
+import type { Product } from './catalog';
 import { getSupabaseAdmin } from './supabase-server';
 
 export type StoreOrder = {
@@ -25,8 +24,6 @@ export type StoreSettings = {
 };
 
 export type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
-
-const inMemoryOrders: StoreOrder[] = [];
 
 function productFromRow(row: Record<string, unknown>): Product {
   return {
@@ -55,16 +52,11 @@ function orderFromRow(row: Record<string, unknown>): StoreOrder {
 const orderSelect = '*, order_items(*)';
 
 export async function getCatalog({ includeArchived = false } = {}) {
-  try {
-    let query = getSupabaseAdmin().from('products').select('*').order('created_at', { ascending: true });
-    if (!includeArchived) query = query.eq('active', true);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return (data || []).map((row) => productFromRow(row));
-  } catch (err) {
-    console.warn('Supabase catalog fetch fallback:', err instanceof Error ? err.message : err);
-    return includeArchived ? products : products.filter((p: Product) => p.active !== false);
-  }
+  let query = getSupabaseAdmin().from('products').select('*').order('created_at', { ascending: true });
+  if (!includeArchived) query = query.eq('active', true);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => productFromRow(row));
 }
 
 export async function saveProduct(product: Product, actorEmail: string, originalSlug?: string) {
@@ -89,122 +81,52 @@ export async function createOrder(input: {
   payment: string;
   idempotencyKey: string;
 }) {
-  try {
-    const client = getSupabaseAdmin();
-    const { data: id, error } = await client.rpc('create_order', {
-      p_items: input.items, p_customer: input.customer, p_delivery: input.delivery,
-      p_payment: input.payment, p_idempotency_key: input.idempotencyKey,
-    });
-    if (error) throw new Error(error.message);
-    const { data, error: readError } = await client.from('orders').select(orderSelect).eq('id', id).single();
-    if (readError) throw new Error(readError.message);
-    return orderFromRow(data);
-  } catch (err) {
-    console.warn('Supabase createOrder fallback:', err instanceof Error ? err.message : err);
-    const priced = priceCartWithCatalog(input.items, products);
-    const token = 'ord_' + Math.random().toString(36).substring(2, 14);
-    const number = 'ZY-' + Math.floor(10000 + Math.random() * 90000);
-    const order: StoreOrder = {
-      token,
-      number,
-      customer: {
-        firstName: input.customer.firstName,
-        lastName: input.customer.lastName,
-        email: input.customer.email,
-        phone: input.customer.phone,
-      },
-      delivery: {
-        address: input.delivery.address,
-        city: input.delivery.city,
-        province: input.delivery.province,
-        postal: input.delivery.postal || '',
-        note: input.delivery.note || '',
-      },
-      items: priced.items,
-      subtotal: priced.subtotal,
-      shipping: priced.shipping,
-      total: priced.total,
-      payment: input.payment as 'cod' | 'bank',
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
-    inMemoryOrders.unshift(order);
-    return order;
-  }
+  const client = getSupabaseAdmin();
+  const { data: id, error } = await client.rpc('create_order', {
+    p_items: input.items, p_customer: input.customer, p_delivery: input.delivery,
+    p_payment: input.payment, p_idempotency_key: input.idempotencyKey,
+  });
+  if (error) throw new Error(error.message);
+  const { data, error: readError } = await client.from('orders').select(orderSelect).eq('id', id).single();
+  if (readError) throw new Error(readError.message);
+  return orderFromRow(data);
 }
 
 export async function getOrders() {
-  try {
-    const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
-    return (data || []).map((row) => orderFromRow(row));
-  } catch {
-    return inMemoryOrders;
-  }
+  const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => orderFromRow(row));
 }
 
 export async function findOrderByToken(token: string) {
-  try {
-    const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).eq('public_token', token).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return orderFromRow(data);
-  } catch {
-    // fallback
-  }
-  return inMemoryOrders.find((o) => o.token === token);
+  const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).eq('public_token', token).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? orderFromRow(data) : undefined;
 }
 
 export async function findOrderByContact(number: string, contact: string) {
-  try {
-    const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).eq('order_number', number.trim()).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) {
-      const normalized = contact.trim().toLowerCase();
-      if ([String(data.email).toLowerCase(), String(data.phone).toLowerCase()].includes(normalized)) return orderFromRow(data);
-      return undefined;
-    }
-  } catch {
-    // fallback
-  }
+  const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).eq('order_number', number.trim()).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
   const normalized = contact.trim().toLowerCase();
-  return inMemoryOrders.find(
-    (o) => o.number === number.trim() && (o.customer.email.toLowerCase() === normalized || o.customer.phone.toLowerCase() === normalized)
-  );
+  if (![String(data.email).toLowerCase(), String(data.phone).toLowerCase()].includes(normalized)) return undefined;
+  return orderFromRow(data);
 }
 
 export async function updateOrderStatus(number: string, status: string, actorEmail: string) {
-  try {
-    const client = getSupabaseAdmin();
-    const { data: id, error } = await client.rpc('admin_update_order_status', { p_order_number: number, p_status: status, p_actor_email: actorEmail });
-    if (error) throw new Error(error.message);
-    const { data, error: readError } = await client.from('orders').select(orderSelect).eq('id', id).single();
-    if (readError) throw new Error(readError.message);
-    return orderFromRow(data);
-  } catch (err) {
-    const order = inMemoryOrders.find((o) => o.number === number);
-    if (order) {
-      order.status = status;
-      return order;
-    }
-    throw err;
-  }
+  const client = getSupabaseAdmin();
+  const { data: id, error } = await client.rpc('admin_update_order_status', { p_order_number: number, p_status: status, p_actor_email: actorEmail });
+  if (error) throw new Error(error.message);
+  const { data, error: readError } = await client.from('orders').select(orderSelect).eq('id', id).single();
+  if (readError) throw new Error(readError.message);
+  return orderFromRow(data);
 }
 
 export async function getStoreSettings(): Promise<StoreSettings> {
-  try {
-    const { data, error } = await getSupabaseAdmin().from('store_settings').select('*').eq('singleton', true).single();
-    if (error) throw new Error(error.message);
-    return { storeName: data.store_name, supportEmail: data.support_email, freeShippingThreshold: data.free_shipping_threshold,
-      flatShipping: data.flat_shipping, bankTransferInstructions: data.bank_transfer_instructions };
-  } catch {
-    return {
-      storeName: 'ZYRA®',
-      supportEmail: 'concierge@zyra.com',
-      freeShippingThreshold: 499900,
-      flatShipping: 25000,
-      bankTransferInstructions: 'Transfer total amount to Bank ZYRA PK70ZYRA0000123456789. Send receipt with order number to concierge@zyra.com.',
-    };
-  }
+  const { data, error } = await getSupabaseAdmin().from('store_settings').select('*').eq('singleton', true).single();
+  if (error) throw new Error(error.message);
+  return { storeName: data.store_name, supportEmail: data.support_email, freeShippingThreshold: data.free_shipping_threshold,
+    flatShipping: data.flat_shipping, bankTransferInstructions: data.bank_transfer_instructions };
 }
 
 export async function updateStoreSettings(settings: StoreSettings, actorEmail: string) {
@@ -213,19 +135,9 @@ export async function updateStoreSettings(settings: StoreSettings, actorEmail: s
 }
 
 export async function getContentSections(): Promise<ContentSection[]> {
-  try {
-    const { data, error } = await getSupabaseAdmin().from('content_sections').select('*').order('sort_order');
-    if (error) throw new Error(error.message);
-    return (data || []).map((row) => ({ key: row.key, label: row.label, sortOrder: row.sort_order, enabled: row.enabled }));
-  } catch {
-    return [
-      { key: 'hero', label: 'Hero Banner', sortOrder: 1, enabled: true },
-      { key: 'marquee', label: 'Announcement Marquee', sortOrder: 2, enabled: true },
-      { key: 'catalog', label: 'Main Catalog Grid', sortOrder: 3, enabled: true },
-      { key: 'collections', label: 'Featured Collections', sortOrder: 4, enabled: true },
-      { key: 'statement', label: 'Brand Statement', sortOrder: 5, enabled: true },
-    ];
-  }
+  const { data, error } = await getSupabaseAdmin().from('content_sections').select('*').order('sort_order');
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => ({ key: row.key, label: row.label, sortOrder: row.sort_order, enabled: row.enabled }));
 }
 
 export async function updateContentSections(sections: ContentSection[], actorEmail: string) {

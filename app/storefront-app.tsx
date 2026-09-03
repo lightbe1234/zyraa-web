@@ -51,6 +51,13 @@ type StoreSettings = {
   bankTransferInstructions: string;
 };
 type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
+const defaultStoreSettings: StoreSettings = {
+  storeName: 'ZYRA',
+  supportEmail: 'hello@zyra.store',
+  freeShippingThreshold: 499900,
+  flatShipping: 25000,
+  bankTransferInstructions: 'Use your order number as the payment reference.',
+};
 const announcements = [
   'Free shipping across Pakistan over Rs. 4,999',
   '14-day size exchange on unworn pieces',
@@ -84,6 +91,8 @@ function useCountdown() {
 export default function StorefrontApp({ path }: { path: string }) {
   const [cart, setCart] = useState<CartItem[]>([]),
     [catalog, setCatalog] = useState<Product[]>(seededProducts),
+    [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings),
+    [homeSections, setHomeSections] = useState<ContentSection[]>([]),
     [ready, setReady] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
@@ -99,7 +108,14 @@ export default function StorefrontApp({ path }: { path: string }) {
     fetch('/api/products')
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((value: Product[]) => setCatalog(value))
-      .catch(() => {});
+      .catch(() => setToast('Live catalog is temporarily unavailable.'));
+    fetch('/api/store-config')
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((value: { settings: StoreSettings; sections: ContentSection[] }) => {
+        setStoreSettings(value.settings);
+        setHomeSections(value.sections);
+      })
+      .catch(() => setToast('Store settings are temporarily unavailable.'));
   }, []);
   useEffect(() => {
     if (ready) localStorage.setItem('zyra-cart', JSON.stringify(cart));
@@ -192,7 +208,7 @@ export default function StorefrontApp({ path }: { path: string }) {
         </>
       )}
       {path === '/' ? (
-        <Home catalog={catalog} />
+        <Home catalog={catalog} sections={homeSections} />
       ) : path.startsWith('/products/') ? (
         <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} />
       ) : path === '/collections' ||
@@ -200,16 +216,17 @@ export default function StorefrontApp({ path }: { path: string }) {
         path === '/search' ? (
         <CatalogView path={path} catalog={catalog} />
       ) : path === '/cart' ? (
-        <CartView cart={cart} subtotal={subtotal} update={update} catalog={catalog} />
+        <CartView cart={cart} subtotal={subtotal} update={update} catalog={catalog} settings={storeSettings} />
       ) : path === '/checkout' ? (
         <CheckoutView
           cart={cart}
           subtotal={subtotal}
           catalog={catalog}
+          settings={storeSettings}
           onComplete={() => setCart([])}
         />
       ) : path.startsWith('/order-confirmation/') ? (
-        <ConfirmationView token={path.split('/')[2]} />
+        <ConfirmationView token={path.split('/')[2]} settings={storeSettings} />
       ) : path === '/track-order' ? (
         <TrackOrder />
       ) : path === '/account' ? (
@@ -587,9 +604,11 @@ function Rail({
   );
 }
 
-function Home({ catalog }: { catalog: Product[] }) {
+function Home({ catalog, sections }: { catalog: Product[]; sections: ContentSection[] }) {
+  const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
   return (
     <main>
+      {enabled('campaign-hero') && (
       <section className="hero">
         <img
           src="/hero.jpg"
@@ -609,7 +628,9 @@ function Home({ catalog }: { catalog: Product[] }) {
         </div>
         <p className="hero-caption">Karachi / 24°51′N 67°00′E</p>
       </section>
-      <Rail title="Best sellers" label="Most wanted" list={catalog} />
+      )}
+      {enabled('best-sellers') && <Rail title="Best sellers" label="Most wanted" list={catalog} />}
+      {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
         <p className="eyebrow">ZYRA / EST. 2026</p>
         <h2>
@@ -618,11 +639,14 @@ function Home({ catalog }: { catalog: Product[] }) {
           who make their own hours.
         </h2>
       </section>
+      )}
+      {enabled('core-forms') && (
       <Rail
         title="Core forms"
         label="Wardrobe architecture"
         list={catalog.slice(6)}
       />
+      )}
       <section className="editorial-grid">
         <a href={`/products/${(catalog[10] || catalog[0]).slug}`}>
           <img
@@ -668,7 +692,7 @@ function Home({ catalog }: { catalog: Product[] }) {
           </a>
         </div>
       </section>
-      <section className="section-shell">
+      {enabled('collection-grid') && <section className="section-shell">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Find your form</p>
@@ -685,8 +709,8 @@ function Home({ catalog }: { catalog: Product[] }) {
             </a>
           ))}
         </div>
-      </section>
-      <section className="reviews section-shell">
+      </section>}
+      {enabled('customer-reviews') && <section className="reviews section-shell">
         <div>
           <p className="eyebrow">Field reports / seeded demo reviews</p>
           <h2>
@@ -709,7 +733,7 @@ function Home({ catalog }: { catalog: Product[] }) {
             become my default.”<cite>— Noor R. / Verified demo order</cite>
           </blockquote>
         </div>
-      </section>
+      </section>}
       <section className="trust-strip">
         <div>
           <ShieldCheck />
@@ -1111,16 +1135,15 @@ function CartView({
   subtotal,
   update,
   catalog,
+  settings,
 }: {
   cart: CartItem[];
   subtotal: number;
   update: (index: number, qty: number) => void;
   catalog: Product[];
+  settings: StoreSettings;
 }) {
-  const [coupon, setCoupon] = useState(''),
-    [applied, setApplied] = useState(false);
-  const discount = applied ? Math.round(subtotal * 0.1) : 0,
-    shipping = subtotal - discount >= 499900 ? 0 : 25000;
+  const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.flatShipping;
   return (
     <main className="bag-page">
       <header>
@@ -1163,37 +1186,10 @@ function CartView({
           </section>
           <aside className="summary-card">
             <h2>Order summary</h2>
-            <label>
-              Promo code
-              <div className="coupon">
-                <input
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Try ZYRA10"
-                />
-                <button
-                  onClick={() =>
-                    setApplied(coupon.trim().toUpperCase() === 'ZYRA10')
-                  }
-                >
-                  Apply
-                </button>
-              </div>
-            </label>
-            {coupon && applied && (
-              <p className="success">Code applied: 10% off</p>
-            )}
-            {coupon && !applied && (
-              <p className="hint">Enter ZYRA10 for this demo.</p>
-            )}
             <dl>
               <div>
                 <dt>Subtotal</dt>
                 <dd>{money(subtotal)}</dd>
-              </div>
-              <div>
-                <dt>Discount</dt>
-                <dd>-{money(discount)}</dd>
               </div>
               <div>
                 <dt>Shipping estimate</dt>
@@ -1201,7 +1197,7 @@ function CartView({
               </div>
               <div className="total">
                 <dt>Estimated total</dt>
-                <dd>{money(subtotal - discount + shipping)}</dd>
+                <dd>{money(subtotal + shipping)}</dd>
               </div>
             </dl>
             <a className="dark-button" href="/checkout">
@@ -1230,18 +1226,20 @@ function CheckoutView({
   cart,
   subtotal,
   catalog,
+  settings,
   onComplete,
 }: {
   cart: CartItem[];
   subtotal: number;
   catalog: Product[];
+  settings: StoreSettings;
   onComplete: () => void;
 }) {
   const [payment, setPayment] = useState('cod'),
     [same, setSame] = useState(true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const shipping = subtotal >= 499900 ? 0 : 25000,
+  const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.flatShipping,
     total = subtotal + shipping;
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1500,7 +1498,7 @@ function OrderSummary({
   );
 }
 
-function ConfirmationView({ token }: { token: string }) {
+function ConfirmationView({ token, settings }: { token: string; settings: StoreSettings }) {
   const [order, setOrder] = useState<Order | null>(null),
     [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -1562,10 +1560,9 @@ function ConfirmationView({ token }: { token: string }) {
       </div>
       {order.payment === 'bank' && (
         <div className="bank-note">
-          <b>Bank transfer demo instructions</b>
+          <b>Bank transfer instructions</b>
           <p>
-            Use {order.number} as your payment reference. Admin must mark
-            payment received before dispatch.
+            {settings.bankTransferInstructions} Use {order.number} as your payment reference.
           </p>
         </div>
       )}
@@ -2075,10 +2072,17 @@ function ProductEditor({
   onCancel: () => void;
   onSaved: (message: string) => void;
 }) {
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [error, setError] = useState(''),
+    [busy, setBusy] = useState(false),
+    [primaryImage, setPrimaryImage] = useState(product?.image || ''),
+    [alternateImage, setAlternateImage] = useState(product?.alternate || '');
   return (
     <form className="admin-product-form" onSubmit={async (event) => {
       event.preventDefault();
+      if (!primaryImage || !alternateImage) {
+        setError('Upload both primary and alternate product images.');
+        return;
+      }
       setBusy(true);
       setError('');
       const data = new FormData(event.currentTarget);
@@ -2095,8 +2099,8 @@ function ProductEditor({
         stock: Number(data.get('stock')),
         colors: String(data.get('colors') || '').split(',').map((value) => value.trim()).filter(Boolean),
         sizes: String(data.get('sizes') || '').split(',').map((value) => value.trim()).filter(Boolean),
-        image: String(data.get('image') || ''),
-        alternate: String(data.get('alternate') || ''),
+        image: primaryImage,
+        alternate: alternateImage,
         description: String(data.get('description') || ''),
         featured: data.get('featured') === 'on',
         newArrival: data.get('newArrival') === 'on',
@@ -2124,14 +2128,67 @@ function ProductEditor({
         <label>Stock<input name="stock" required type="number" min="0" step="1" defaultValue={product?.stock ?? 0} /></label>
         <label>Sizes, comma separated<input name="sizes" required defaultValue={product?.sizes.join(', ') || 'S, M, L, XL'} /></label>
         <label className="wide">Colors, comma separated<input name="colors" required defaultValue={product?.colors.join(', ') || 'Obsidian, Bone'} /></label>
-        <label className="wide">Primary image path<input name="image" required defaultValue={product?.image || '/product-tee.jpg'} /></label>
-        <label className="wide">Alternate image path<input name="alternate" required defaultValue={product?.alternate || '/campaign.jpg'} /></label>
+        <ImageUploader label="Primary product photo" value={primaryImage} onChange={setPrimaryImage} onError={setError} />
+        <ImageUploader label="Alternate product photo" value={alternateImage} onChange={setAlternateImage} onError={setError} />
         <label className="wide">Description<textarea name="description" required rows={4} defaultValue={product?.description} /></label>
       </div>
       <div className="admin-checks"><label><input type="checkbox" name="featured" defaultChecked={product?.featured} /> Featured</label><label><input type="checkbox" name="newArrival" defaultChecked={product?.newArrival ?? true} /> New arrival</label></div>
       {error && <p className="form-error">{error}</p>}
       <div className="admin-form-actions"><button type="button" className="outline-button" onClick={onCancel}>Cancel</button><button className="dark-button" disabled={busy}>{busy ? 'Saving…' : 'Save product'}</button></div>
     </form>
+  );
+}
+
+function ImageUploader({
+  label,
+  value,
+  onChange,
+  onError,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onError: (value: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  return (
+    <div className="admin-image-upload">
+      <span>{label}</span>
+      {value && (
+        <div className="admin-image-preview">
+          <img src={value} alt={`${label} preview`} />
+          <button type="button" className="outline-button" onClick={() => onChange('')}>Remove</button>
+        </div>
+      )}
+      <label className="admin-file-button">
+        {uploading ? 'Uploading…' : value ? 'Replace photo' : 'Choose photo'}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          disabled={uploading}
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setUploading(true);
+            onError('');
+            try {
+              const form = new FormData();
+              form.append('file', file);
+              const response = await fetch('/api/admin/uploads', { method: 'POST', body: form });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.error || 'Image could not be uploaded.');
+              onChange(result.url);
+            } catch (uploadError) {
+              onError(uploadError instanceof Error ? uploadError.message : 'Image could not be uploaded.');
+            } finally {
+              setUploading(false);
+              event.target.value = '';
+            }
+          }}
+        />
+      </label>
+      <small>JPG, PNG, WebP or AVIF · maximum 4 MB</small>
+    </div>
   );
 }
 
