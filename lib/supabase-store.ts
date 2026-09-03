@@ -1,4 +1,4 @@
-import { catalog, productBySlug, type Product } from './catalog';
+import { products, productBySlug, type Product } from './catalog';
 import { priceCartWithCatalog } from './commerce';
 import { getSupabaseAdmin } from './supabase-server';
 
@@ -63,7 +63,7 @@ export async function getCatalog({ includeArchived = false } = {}) {
     return (data || []).map((row) => productFromRow(row));
   } catch (err) {
     console.warn('Supabase catalog fetch fallback:', err instanceof Error ? err.message : err);
-    return includeArchived ? catalog : catalog.filter((p) => p.active !== false);
+    return includeArchived ? products : products.filter((p: Product) => p.active !== false);
   }
 }
 
@@ -101,7 +101,7 @@ export async function createOrder(input: {
     return orderFromRow(data);
   } catch (err) {
     console.warn('Supabase createOrder fallback:', err instanceof Error ? err.message : err);
-    const priced = priceCartWithCatalog(input.items, catalog);
+    const priced = priceCartWithCatalog(input.items, products);
     const token = 'ord_' + Math.random().toString(36).substring(2, 14);
     const number = 'ZY-' + Math.floor(10000 + Math.random() * 90000);
     const order: StoreOrder = {
