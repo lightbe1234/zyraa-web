@@ -1,0 +1,67 @@
+/* Isolated feature styles ensure gallery/admin enhancements receive their own deployment asset. */
+.thumbs button.active {
+  border-color: var(--ink);
+}
+
+.gallery-fade {
+  animation: zyra-gallery-fade-in 240ms ease both;
+}
+
+@keyframes zyra-gallery-fade-in {
+  from {
+    opacity: 0.35;
+    transform: scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mobile-product-strip {
+  display: none;
+}
+
+.admin-collection-row.editing .admin-image-upload {
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+.admin-collection-row.editing .admin-image-preview {
+  min-height: 180px;
+}
+
+.admin-collection-row.editing .admin-image-preview img {
+  height: 220px;
+}
+
+@media (max-width: 760px) {
+  .product-gallery .main-media,
+  .product-gallery .thumbs {
+    display: none;
+  }
+
+  .product-gallery .mobile-product-strip {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    background: #d3d0c8;
+  }
+
+  .product-gallery .mobile-product-strip img {
+    flex: 0 0 88%;
+    width: 88%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    scroll-snap-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-fade {
+    animation: none;
+  }
+}
