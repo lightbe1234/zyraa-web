@@ -15,7 +15,9 @@ export async function PUT(request: Request) {
     assertSameOrigin(request);
     if (!(await consumeRateLimit(request, 'admin-settings', 30, 600))) return Response.json({ error: 'Too many requests.' }, { status: 429 });
     const body = (await request.json()) as StoreSettings;
-    if (!body.storeName?.trim() || !/^\S+@\S+\.\S+$/.test(body.supportEmail || '') || !Number.isInteger(body.freeShippingThreshold) || body.freeShippingThreshold < 0 || !body.bankTransferInstructions?.trim()) {
+    const safeAsset = (value: string) => value.startsWith('/') || /^https:\/\//i.test(value);
+    const safeLink = (value: string) => value.startsWith('/') || /^https:\/\//i.test(value);
+    if (!body.storeName?.trim() || !/^\S+@\S+\.\S+$/.test(body.supportEmail || '') || !Number.isInteger(body.freeShippingThreshold) || body.freeShippingThreshold < 0 || !body.bankTransferInstructions?.trim() || !body.heroImage?.trim() || !safeAsset(body.heroImage) || !body.heroEyebrow?.trim() || body.heroEyebrow.length > 80 || !body.heroHeading?.trim() || body.heroHeading.length > 120 || !body.heroCtaLabel?.trim() || body.heroCtaLabel.length > 40 || !body.heroCtaHref?.trim() || !safeLink(body.heroCtaHref)) {
       return Response.json({ error: 'Invalid store settings.' }, { status: 400 });
     }
     await updateStoreSettings(body, actor);

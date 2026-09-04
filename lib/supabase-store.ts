@@ -26,6 +26,11 @@ export type StoreSettings = {
   youtubeUrl?: string;
   tiktokUrl?: string;
   whatsappUrl?: string;
+  heroImage: string;
+  heroEyebrow: string;
+  heroHeading: string;
+  heroCtaLabel: string;
+  heroCtaHref: string;
 };
 
 export type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
@@ -161,6 +166,11 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     youtubeUrl: data.youtube_url || 'https://youtube.com',
     tiktokUrl: data.tiktok_url || 'https://tiktok.com',
     whatsappUrl: data.whatsapp_url || 'https://wa.me/923000000000',
+    heroImage: data.hero_image || '/break-the-pattern-hero.jpeg',
+    heroEyebrow: data.hero_eyebrow || 'ZYRA / DROP 01',
+    heroHeading: data.hero_heading || 'BREAK\nTHE\nPATTERN',
+    heroCtaLabel: data.hero_cta_label || 'Shop the drop',
+    heroCtaHref: data.hero_cta_href || '/collections/after-hours',
   };
 }
 

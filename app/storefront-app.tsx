@@ -58,6 +58,11 @@ type StoreSettings = {
   youtubeUrl?: string;
   tiktokUrl?: string;
   whatsappUrl?: string;
+  heroImage: string;
+  heroEyebrow: string;
+  heroHeading: string;
+  heroCtaLabel: string;
+  heroCtaHref: string;
 };
 type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 const defaultStoreSettings: StoreSettings = {
@@ -71,6 +76,11 @@ const defaultStoreSettings: StoreSettings = {
   youtubeUrl: 'https://youtube.com',
   tiktokUrl: 'https://tiktok.com',
   whatsappUrl: 'https://wa.me/923000000000',
+  heroImage: '/break-the-pattern-hero.jpeg',
+  heroEyebrow: 'ZYRA / DROP 01',
+  heroHeading: 'BREAK\nTHE\nPATTERN',
+  heroCtaLabel: 'Shop the drop',
+  heroCtaHref: '/collections/after-hours',
 };
 const announcements = [
   'Free shipping across Pakistan over Rs. 4,999',
@@ -105,14 +115,20 @@ function useCountdown() {
 export default function StorefrontApp({
   path,
   initialCatalog,
+  initialSettings,
+  initialSections,
+  initialCollections,
 }: {
   path: string;
   initialCatalog?: Product[];
+  initialSettings?: StoreSettings;
+  initialSections?: ContentSection[];
+  initialCollections?: Category[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]),
     [catalog, setCatalog] = useState<Product[]>(initialCatalog?.length ? initialCatalog : seededProducts),
-    [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings),
-    [homeSections, setHomeSections] = useState<ContentSection[]>([]),
+    [storeSettings, setStoreSettings] = useState<StoreSettings>(initialSettings || defaultStoreSettings),
+    [homeSections, setHomeSections] = useState<ContentSection[]>(initialSections || []),
     [ready, setReady] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
@@ -149,7 +165,7 @@ export default function StorefrontApp({
       return updated;
     });
   };
-  const [collectionsList, setCollectionsList] = useState<Category[]>(categories);
+  const [collectionsList, setCollectionsList] = useState<Category[]>(initialCollections?.length ? initialCollections : categories);
 
   const countdown = useCountdown();
   useEffect(() => {
@@ -266,6 +282,7 @@ export default function StorefrontApp({
         <Home
           catalog={catalog}
           sections={homeSections}
+          settings={storeSettings}
           reviews={reviews}
           onAddReview={addReview}
           onDeleteReview={deleteReview}
@@ -1561,6 +1578,7 @@ function CommunityReviews({
 function Home({
   catalog,
   sections,
+  settings,
   reviews,
   onAddReview,
   onDeleteReview,
@@ -1569,6 +1587,7 @@ function Home({
 }: {
   catalog: Product[];
   sections: ContentSection[];
+  settings: StoreSettings;
   reviews: Review[];
   onAddReview: (r: Review) => void;
   onDeleteReview: (id: string) => void;
@@ -1585,21 +1604,15 @@ function Home({
       {enabled('campaign-hero') && (
       <section className="hero">
         <img
-          src="/break-the-pattern-hero.jpeg"
-          alt="Model seated on a chair wearing a ZYRA T-shirt"
+          src={settings.heroImage || defaultStoreSettings.heroImage}
+          alt="ZYRA campaign banner"
         />
         <div className="hero-shade" />
         <div className="hero-copy">
-          <p>ZYRA / DROP 01</p>
-          <h1>
-            Break
-            <br />
-            The
-            <br />
-            pattern.
-          </h1>
-          <a className="light-button" href="/collections/after-hours">
-            Shop the drop <span>↗</span>
+          <p>{settings.heroEyebrow || defaultStoreSettings.heroEyebrow}</p>
+          <h1>{(settings.heroHeading || defaultStoreSettings.heroHeading).split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</h1>
+          <a className="light-button" href={settings.heroCtaHref || defaultStoreSettings.heroCtaHref}>
+            {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <span>↗</span>
           </a>
         </div>
         <p className="hero-caption">Karachi / 24°51′N 67°00′E</p>
@@ -1608,9 +1621,17 @@ function Home({
       {enabled('best-sellers') && <Rail title="Best sellers" label="Most wanted" list={catalog} />}
       {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
-        <p className="eyebrow">ZYRA / EST. 2026</p>
-        <h2>All the trends. One destination.</h2>
-        <p className="manifesto-copy">Whatever&apos;s trending, you&apos;ll find it at ZYRA.</p>
+        <div className="manifesto-minimal">
+          <div>
+            <p className="eyebrow">ZYRA / EST. 2023</p>
+            <h2>All the trends.<br />One destination.</h2>
+            <p className="manifesto-copy">Whatever&apos;s trending, you&apos;ll find it at ZYRA.</p>
+        </div>
+        <div className="manifesto-minimal-badges" aria-label="Store assurances">
+          <span><i className="manifesto-icon-wrap"><ShieldCheck /></i> Secure checkout</span>
+          <span><i className="manifesto-icon-wrap"><PackageCheck /></i> 14-day exchange</span>
+        </div>
+      </div>
       </section>
       )}
       {enabled('core-forms') && (
@@ -1692,7 +1713,13 @@ function Home({
           catalog={catalog}
         />
       )}
-      <section className="trust-strip" aria-label="Brand Guarantees & Trust Signals">
+      <section className="trust-section" aria-label="Brand guarantees and trust signals">
+        <header className="trust-heading">
+          <p className="eyebrow">Why shop ZYRA</p>
+          <h2>Confidence, built in.</h2>
+          <span className="trust-live"><i /> Store protection active</span>
+        </header>
+        <div className="trust-strip">
         <div className="trust-card">
           <div className="trust-card-main">
             <div className="trust-icon-box">
@@ -1700,7 +1727,7 @@ function Home({
             </div>
             <div>
               <h3 className="trust-title">Secure Checkout</h3>
-              <p className="trust-desc">Protected 256-bit encrypted checkout</p>
+              <p className="trust-desc">Protected checkout and private order lookup</p>
             </div>
           </div>
           <span className="trust-pill trust-pill-ssl">SSL Active</span>
@@ -1726,7 +1753,7 @@ function Home({
             </div>
             <div>
               <h3 className="trust-title">Flexible Payment</h3>
-              <p className="trust-desc">Cards, Apple Pay, or Cash on Delivery</p>
+              <p className="trust-desc">Bank transfer or Cash on Delivery</p>
             </div>
           </div>
           <span className="trust-pill trust-pill-black">0% Fee</span>
@@ -1743,6 +1770,7 @@ function Home({
             </div>
           </div>
           <span className="trust-pill">Doorstep</span>
+        </div>
         </div>
       </section>
     </main>
@@ -2691,7 +2719,7 @@ function AdminView({
     [editing, setEditing] = useState<Product | null>(null),
     [productFormOpen, setProductFormOpen] = useState(false),
     [selectedOrder, setSelectedOrder] = useState<Order | null>(null),
-    [settings, setSettings] = useState<StoreSettings>({ storeName: 'ZYRA', supportEmail: 'hello@zyra.store', freeShippingThreshold: 499900, flatShipping: 25000, bankTransferInstructions: 'Use your order number as the payment reference.' }),
+    [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings),
     [sections, setSections] = useState<ContentSection[]>([]),
     [saved, setSaved] = useState(''),
     [adminError, setAdminError] = useState('');
@@ -2946,8 +2974,60 @@ function AdminView({
           </section>
         )}
         {tab === 'content' && (
-          <div className="admin-form">
+          <form
+            className="admin-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setAdminError('');
+              const [contentResponse, settingsResponse] = await Promise.all([
+                fetch('/api/admin/content', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sections }) }),
+                fetch('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(settings) }),
+              ]);
+              const [contentResult, settingsResult] = await Promise.all([contentResponse.json(), settingsResponse.json()]);
+              if (!contentResponse.ok || !settingsResponse.ok) {
+                setAdminError(contentResult.error || settingsResult.error || 'Homepage content could not be saved.');
+                return;
+              }
+              setSections(contentResult);
+              setSettings(settingsResult);
+              setSaved('Homepage content saved to Supabase.');
+            }}
+          >
             <h2>Homepage content</h2>
+            <div className="admin-banner-editor">
+              <div className="admin-section-head">
+                <div>
+                  <h3>Campaign banner</h3>
+                  <p>Change the homepage hero image, overlay copy and destination.</p>
+                </div>
+              </div>
+              <ImageUploader
+                label="Banner image"
+                value={settings.heroImage}
+                onChange={(heroImage) => setSettings({ ...settings, heroImage })}
+                onError={setAdminError}
+                scope="collection"
+              />
+              <label>
+                Eyebrow text
+                <input maxLength={80} value={settings.heroEyebrow} onChange={(event) => setSettings({ ...settings, heroEyebrow: event.target.value })} />
+              </label>
+              <label>
+                Banner heading
+                <textarea maxLength={120} rows={3} value={settings.heroHeading} onChange={(event) => setSettings({ ...settings, heroHeading: event.target.value })} />
+                <small>Use a new line to control each heading line.</small>
+              </label>
+              <div className="admin-field-pair">
+                <label>
+                  CTA label
+                  <input maxLength={40} value={settings.heroCtaLabel} onChange={(event) => setSettings({ ...settings, heroCtaLabel: event.target.value })} />
+                </label>
+                <label>
+                  CTA link
+                  <input value={settings.heroCtaHref} onChange={(event) => setSettings({ ...settings, heroCtaHref: event.target.value })} />
+                </label>
+              </div>
+            </div>
             {sections.map((section, i) => (
               <label className="toggle-row" key={section.key}>
                 <span>
@@ -2957,19 +3037,9 @@ function AdminView({
                 <input type="checkbox" checked={section.enabled} onChange={(event) => setSections((current) => current.map((item) => item.key === section.key ? { ...item, enabled: event.target.checked } : item))} />
               </label>
             ))}
-            <button
-              className="dark-button"
-              onClick={async () => {
-                const response = await fetch('/api/admin/content', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sections }) });
-                const result = await response.json();
-                if (!response.ok) { setAdminError(result.error || 'Content could not be saved.'); return; }
-                setSections(result); setSaved('Homepage content saved to Supabase.');
-              }}
-            >
-              Save content order
-            </button>
+            <button className="dark-button">Save homepage content</button>
             {saved && <p className="success">{saved}</p>}
-          </div>
+          </form>
         )}
         {tab === 'settings' && (
           <form

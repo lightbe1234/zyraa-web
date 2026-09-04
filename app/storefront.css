@@ -259,9 +259,9 @@ button:focus-visible {
 .hero-copy {
   position: absolute;
   left: clamp(20px, 5vw, 76px);
-  top: 50%;
+  top: clamp(46px, 8vh, 84px);
   width: min(44vw, 680px);
-  transform: translateY(-50%);
+  transform: none;
 }
 .hero-copy > p,
 .hero-caption {
@@ -277,6 +277,9 @@ button:focus-visible {
   line-height: 0.86;
   letter-spacing: -0.075em;
   text-transform: uppercase;
+}
+.hero-copy h1 span {
+  display: block;
 }
 .light-button {
   min-width: 210px;
@@ -420,29 +423,167 @@ button:focus-visible {
   color: var(--muted);
 }
 .manifesto {
-  min-height: 55vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
   border-top: 1px solid var(--line);
   background: var(--ink);
   color: var(--paper);
 }
+.manifesto::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(circle at 82% 48%, rgba(244, 242, 236, 0.12), transparent 28%),
+    linear-gradient(120deg, transparent 0 58%, rgba(244, 242, 236, 0.035) 58% 59%, transparent 59% 100%);
+}
+.home-page > .manifesto {
+  min-height: 0;
+  padding: clamp(54px, 6vw, 82px) var(--home-gutter) 48px;
+}
+.manifesto-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);
+  gap: clamp(40px, 7vw, 110px);
+  align-items: center;
+}
+.manifesto-statement {
+  max-width: 930px;
+}
 .manifesto .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   color: #97968f;
+}
+.manifesto .eyebrow > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9ff45;
+  box-shadow: 0 0 0 0 rgba(201, 255, 69, 0.38);
+  animation: manifesto-status 2.2s ease-out infinite;
 }
 .manifesto h2 {
   margin-top: 20px;
-  max-width: 1120px;
-  font-size: clamp(43px, 7vw, 106px);
+  max-width: 980px;
+  font-size: clamp(43px, 5.3vw, 78px);
+  animation: manifesto-reveal 700ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
 }
 .manifesto-copy {
-  margin-top: clamp(22px, 3vw, 40px);
+  margin-top: clamp(18px, 2.2vw, 28px);
   max-width: 680px;
   color: #c8c7c0;
   font-size: clamp(16px, 1.8vw, 24px);
   line-height: 1.5;
 }
+.manifesto-proof {
+  position: relative;
+  min-height: 270px;
+  display: grid;
+  place-items: center;
+}
+.manifesto-signal {
+  width: 210px;
+  height: 210px;
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(244, 242, 236, 0.18);
+  border-radius: 50%;
+}
+.manifesto-signal::before,
+.manifesto-signal::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  border: 1px dashed rgba(244, 242, 236, 0.2);
+  animation: manifesto-orbit 16s linear infinite;
+}
+.manifesto-signal::before { inset: 17px; }
+.manifesto-signal::after { inset: -22px; animation-direction: reverse; animation-duration: 22s; }
+.manifesto-signal span {
+  font-size: 34px;
+  font-weight: 850;
+  letter-spacing: -0.08em;
+  opacity: 0.18;
+}
+.manifesto-badge {
+  width: min(300px, 88%);
+  min-height: 76px;
+  position: absolute;
+  z-index: 2;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(244, 242, 236, 0.22);
+  background: rgba(25, 25, 23, 0.82);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(16px);
+}
+.manifesto-badge-secure { top: 26px; right: 0; animation: manifesto-float 4.2s ease-in-out infinite; }
+.manifesto-badge-exchange { bottom: 24px; left: 0; animation: manifesto-float 4.8s ease-in-out -1.6s infinite; }
+.manifesto-badge-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+}
+.manifesto-badge-icon svg { width: 20px; }
+.manifesto-badge > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.manifesto-badge small { color: #9d9c96; font: 8px var(--font-geist-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.manifesto-badge strong { font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase; }
+.manifesto-badge > i {
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(201, 255, 69, 0.12);
+  color: #c9ff45;
+  font: 8px var(--font-geist-mono);
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.manifesto-marquee {
+  margin-top: clamp(42px, 5vw, 64px);
+  overflow: hidden;
+  border-top: 1px solid rgba(244, 242, 236, 0.14);
+  border-bottom: 1px solid rgba(244, 242, 236, 0.14);
+}
+.manifesto-marquee > div {
+  width: max-content;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  color: #aaa9a2;
+  font: 9px var(--font-geist-mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  animation: manifesto-track 24s linear infinite;
+}
+.manifesto-marquee b { color: #c9ff45; font-size: 9px; }
+@keyframes manifesto-reveal {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes manifesto-status {
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes manifesto-float {
+  0%, 100% { transform: translateY(0) rotate(-0.5deg); }
+  50% { transform: translateY(-8px) rotate(0.5deg); }
+}
+@keyframes manifesto-orbit { to { transform: rotate(360deg); } }
+@keyframes manifesto-track { to { transform: translateX(-50%); } }
 @media (max-width: 800px) {
   .promo {
     gap: 0.6rem;
@@ -508,12 +649,12 @@ button:focus-visible {
     background: linear-gradient(180deg, rgba(236, 236, 232, 0.5) 0%, rgba(236, 236, 232, 0.06) 52%, rgba(236, 236, 232, 0.22) 100%);
   }
   .hero-copy {
-    top: auto;
-    bottom: 24px;
+    top: 44px;
+    bottom: auto;
     left: 12px;
     right: auto;
     width: 42%;
-    height: 250px;
+    height: auto;
     transform: none;
   }
   .hero-copy h1 {
@@ -522,10 +663,7 @@ button:focus-visible {
     line-height: 0.94;
   }
   .hero-copy .light-button {
-    position: absolute;
-    top: auto;
-    bottom: 0;
-    left: 0;
+    position: static;
     min-width: 150px;
     width: 150px;
     height: 46px;
@@ -934,22 +1072,33 @@ button:focus-visible {
 .collection-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
+  gap: clamp(10px, 1.4vw, 20px);
 }
 .collection-grid > a {
+  overflow: hidden;
+  border: 1px solid var(--line);
   background: var(--paper);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+.collection-grid > a:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 38px rgba(17, 17, 15, 0.09);
 }
 .collection-grid img {
   width: 100%;
-  aspect-ratio: 4/3;
+  aspect-ratio: 4/5;
   object-fit: cover;
-  filter: grayscale(0.7);
+  object-position: center 28%;
+  filter: grayscale(0.38);
+  transition: transform 500ms ease, filter 300ms ease;
+}
+.collection-grid > a:hover img {
+  transform: scale(1.025);
+  filter: grayscale(0.12);
 }
 .collection-grid span {
-  min-height: 60px;
-  padding: 0 16px;
+  min-height: 68px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1438,16 +1587,47 @@ button:focus-visible {
   letter-spacing: 0.06em;
   margin-bottom: 8px;
 }
+.trust-section {
+  margin: clamp(42px, 6vw, 76px) var(--home-gutter) var(--home-section-space);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 72%, #ddd9cf);
+}
+.trust-heading {
+  position: relative;
+  padding: clamp(24px, 3.5vw, 42px);
+  border-bottom: 1px solid var(--line);
+}
+.trust-heading h2 {
+  margin-top: 8px;
+  font-size: clamp(34px, 4.4vw, 64px);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+.trust-live {
+  position: absolute;
+  top: clamp(24px, 3.5vw, 42px);
+  right: clamp(24px, 3.5vw, 42px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 9px var(--font-geist-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.trust-live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 38%, transparent);
+  animation: trust-signal 2.2s ease-out infinite;
+}
 .trust-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
-}
-.home-page > .trust-strip {
-  margin: clamp(32px, 5vw, 64px) var(--home-gutter) var(--home-section-space);
-  border-inline: 1px solid var(--line);
+  background: transparent;
 }
 .trust-card {
   min-height: 84px;
@@ -1457,7 +1637,11 @@ button:focus-visible {
   justify-content: space-between;
   gap: 12px;
   border-right: 1px solid var(--line);
-  transition: background-color 0.2s ease, transform 0.15s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.trust-card:hover {
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  transform: translateY(-2px);
 }
 .trust-strip > .trust-card:last-child {
   border-right: none;
@@ -1478,7 +1662,13 @@ button:focus-visible {
   justify-content: center;
   flex-shrink: 0;
   color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 50%;
+  animation: trust-float 3.8s ease-in-out infinite;
 }
+.trust-card:nth-child(2) .trust-icon-box { animation-delay: -0.9s; }
+.trust-card:nth-child(3) .trust-icon-box { animation-delay: -1.8s; }
+.trust-card:nth-child(4) .trust-icon-box { animation-delay: -2.7s; }
 .trust-icon {
   width: 28px;
   height: 28px;
@@ -1523,6 +1713,14 @@ button:focus-visible {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.06);
   font-weight: 600;
+}
+@keyframes trust-signal {
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes trust-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 .footer {
   padding: 80px 4vw 20px;
@@ -2914,6 +3112,45 @@ button:focus-visible {
 .admin-form > .success {
   margin: 0 22px;
 }
+.admin-banner-editor {
+  margin: 22px;
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.admin-banner-editor .admin-section-head h3,
+.admin-banner-editor .admin-section-head p {
+  margin: 0;
+}
+.admin-banner-editor .admin-section-head h3 {
+  font-size: 18px;
+  text-transform: uppercase;
+}
+.admin-banner-editor .admin-section-head p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.admin-banner-editor > label,
+.admin-field-pair label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font: 10px var(--font-geist-mono);
+  text-transform: uppercase;
+}
+.admin-banner-editor label small {
+  color: var(--muted);
+  line-height: 1.45;
+  text-transform: none;
+}
+.admin-field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -2978,8 +3215,38 @@ button:focus-visible {
   .home-page > .campaign-banner {
     margin-inline: 12px;
   }
-  .home-page > .trust-strip {
+  .home-page > .trust-section {
     margin-inline: 12px;
+  }
+  .home-page > .manifesto {
+    padding: 48px 18px 34px;
+  }
+  .manifesto-layout {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .manifesto h2 {
+    max-width: 620px;
+    font-size: clamp(40px, 12vw, 58px);
+  }
+  .manifesto-copy {
+    max-width: 520px;
+    font-size: 16px;
+  }
+  .manifesto-proof {
+    min-height: 250px;
+  }
+  .manifesto-signal {
+    width: 168px;
+    height: 168px;
+  }
+  .manifesto-badge {
+    width: min(286px, 86%);
+  }
+  .manifesto-badge-secure { top: 16px; }
+  .manifesto-badge-exchange { bottom: 14px; }
+  .manifesto-marquee {
+    margin-top: 34px;
   }
   .product-image {
     aspect-ratio: 3/4;
@@ -3011,6 +3278,16 @@ button:focus-visible {
   .trust-card {
     min-height: 76px;
     padding: 14px 16px;
+  }
+  .trust-heading {
+    padding: 24px 18px;
+  }
+  .trust-live {
+    position: static;
+    margin-top: 18px;
+  }
+  .admin-field-pair {
+    grid-template-columns: 1fr;
   }
   .footer {
     grid-template-columns: 1fr 1fr;
@@ -3254,6 +3531,21 @@ button:focus-visible {
   .trust-strip {
     grid-template-columns: 1fr;
   }
+  .manifesto h2 {
+    font-size: clamp(38px, 11.5vw, 48px);
+  }
+  .manifesto-proof {
+    min-height: 238px;
+  }
+  .manifesto-badge {
+    width: 91%;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+  .manifesto-badge-icon {
+    width: 38px;
+    height: 38px;
+  }
   .footer {
     grid-template-columns: 1fr;
   }
@@ -3271,5 +3563,16 @@ button:focus-visible {
   }
   .search-panel {
     padding: 0 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manifesto h2,
+  .manifesto .eyebrow > span,
+  .manifesto-signal::before,
+  .manifesto-signal::after,
+  .manifesto-badge,
+  .manifesto-marquee > div {
+    animation: none;
   }
 }
