@@ -102,9 +102,15 @@ function useCountdown() {
   return left;
 }
 
-export default function StorefrontApp({ path }: { path: string }) {
+export default function StorefrontApp({
+  path,
+  initialCatalog,
+}: {
+  path: string;
+  initialCatalog?: Product[];
+}) {
   const [cart, setCart] = useState<CartItem[]>([]),
-    [catalog, setCatalog] = useState<Product[]>(seededProducts),
+    [catalog, setCatalog] = useState<Product[]>(initialCatalog?.length ? initialCatalog : seededProducts),
     [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings),
     [homeSections, setHomeSections] = useState<ContentSection[]>([]),
     [ready, setReady] = useState(false),
@@ -151,10 +157,12 @@ export default function StorefrontApp({ path }: { path: string }) {
       setCart(JSON.parse(localStorage.getItem('zyra-cart') || '[]'));
     } catch {}
     setReady(true);
-    fetch('/api/products')
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((value: Product[]) => setCatalog(value))
-      .catch(() => setToast('Live catalog is temporarily unavailable.'));
+    if (!initialCatalog?.length) {
+      fetch('/api/products')
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then((value: Product[]) => setCatalog(value))
+        .catch(() => setToast('Live catalog is temporarily unavailable.'));
+    }
     fetch('/api/store-config')
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((value: { settings: StoreSettings; sections: ContentSection[]; collections: Category[] }) => {
@@ -332,30 +340,40 @@ function Header({
 }) {
   return (
     <header className="site-header">
-      <button className="icon-button" aria-label="Open menu" onClick={onMenu}>
-        <Menu />
-      </button>
+      <div className="header-leading">
+        <button className="header-menu-button" aria-label="Open menu" onClick={onMenu}>
+          <Menu />
+          <span>Menu</span>
+        </button>
+        <nav className="header-primary-nav" aria-label="Primary navigation">
+          <a href="/collections">Shop</a>
+          <a href="/collections/new-arrivals">New arrivals</a>
+        </nav>
+      </div>
       <a className="wordmark" href="/">
         ZYRA<span>®</span>
       </a>
       <nav className="header-actions" aria-label="Utility">
-        <button className="icon-button" aria-label="Search" onClick={onSearch}>
+        <button className="header-tool" aria-label="Search" onClick={onSearch}>
           <Search />
+          <span>Search</span>
         </button>
         <a
-          className="icon-button hide-mobile"
+          className="header-tool hide-mobile"
           href="/account"
           aria-label="Account"
         >
           <CircleUserRound />
+          <span>Account</span>
         </a>
         <button
-          className="icon-button cart-link"
+          className="header-tool cart-link"
           aria-label={`Cart, ${count} items`}
           onClick={onCart}
         >
           <ShoppingBag />
-          <span>{count}</span>
+          <span className="header-tool-label">Bag</span>
+          <span className="cart-count" aria-hidden="true">{count}</span>
         </button>
       </nav>
     </header>
@@ -667,14 +685,16 @@ function Rail({
           <p className="eyebrow">{label}</p>
           <h2>{title}</h2>
         </div>
-        <a href="/collections">
-          View all <span>↗</span>
-        </a>
       </div>
       <div className="product-grid">
         {list.slice(0, 4).map((p) => (
           <ProductCard key={p.slug} product={p} />
         ))}
+      </div>
+      <div className="section-view-all">
+        <a className="outline-button" href="/collections">
+          View all <span>↗</span>
+        </a>
       </div>
     </section>
   );
@@ -1556,21 +1576,27 @@ function Home({
   collections?: Category[];
 }) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
+  const animeCollection = collections.find((collection) => collection.slug === 'outerwear');
+  const streetwearCollection = collections.find((collection) => collection.slug === 'hoodies');
+  const animeTitle = animeCollection?.name && animeCollection.name !== 'Outerwear' ? animeCollection.name : 'Anime Collection';
+  const streetwearTitle = streetwearCollection?.name && streetwearCollection.name !== 'Hoodies' ? streetwearCollection.name : 'Street Wear';
   return (
-    <main>
+    <main className="home-page">
       {enabled('campaign-hero') && (
       <section className="hero">
         <img
-          src="/hero.jpg"
-          alt="Model wearing a monochrome streetwear look in an urban setting"
+          src="/break-the-pattern-hero.jpeg"
+          alt="Model seated on a chair wearing a ZYRA T-shirt"
         />
         <div className="hero-shade" />
         <div className="hero-copy">
-          <p>Drop 01 / 2026</p>
+          <p>ZYRA / DROP 01</p>
           <h1>
-            Built for
+            Break
             <br />
-            after hours.
+            The
+            <br />
+            pattern.
           </h1>
           <a className="light-button" href="/collections/after-hours">
             Shop the drop <span>↗</span>
@@ -1583,11 +1609,8 @@ function Home({
       {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
         <p className="eyebrow">ZYRA / EST. 2026</p>
-        <h2>
-          Uniforms for the people
-          <br />
-          who make their own hours.
-        </h2>
+        <h2>All the trends. One destination.</h2>
+        <p className="manifesto-copy">Whatever&apos;s trending, you&apos;ll find it at ZYRA.</p>
       </section>
       )}
       {enabled('core-forms') && (
@@ -1598,22 +1621,22 @@ function Home({
       />
       )}
       <section className="editorial-grid">
-        <a href={`/products/${(catalog[10] || catalog[0]).slug}`}>
+        <a href={`/collections/${animeCollection?.slug || 'outerwear'}`}>
           <img
-            src="/campaign.jpg"
-            alt="Editorial monochrome fashion portrait"
+            src="/anime-collection.jpeg"
+            alt="Model wearing a red anime graphic T-shirt"
           />
           <div>
-            <p className="eyebrow">Focus / 011</p>
-            <h2>The Nocturne Hoodie</h2>
-            <span>Shop the piece ↗</span>
+            <p className="eyebrow">Collection / 001</p>
+            <h2>{animeTitle}</h2>
+            <span>Explore collection ↗</span>
           </div>
         </a>
-        <a href="/collections/city-utility">
-          <img src="/collection-store.jpg" alt="Minimal fashion studio" />
+        <a href={`/collections/${streetwearCollection?.slug || 'hoodies'}`}>
+          <img src="/street-wear.jpeg" alt="Model wearing an oversized blue graphic T-shirt" />
           <div>
-            <p className="eyebrow">Collection / 003</p>
-            <h2>City Utility</h2>
+            <p className="eyebrow">Collection / 002</p>
+            <h2>{streetwearTitle}</h2>
             <span>Explore collection ↗</span>
           </div>
         </a>
