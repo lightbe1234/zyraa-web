@@ -10,7 +10,8 @@ export type StoreOrder = {
   subtotal: number;
   shipping: number;
   total: number;
-  payment: 'cod' | 'bank';
+  payment: 'cod' | 'bank' | 'safepay';
+  paymentStatus: string;
   status: string;
   createdAt: string;
 };
@@ -75,7 +76,7 @@ function orderFromRow(row: Record<string, unknown>): StoreOrder {
     customer: { firstName: String(row.first_name), lastName: String(row.last_name), email: String(row.email), phone: String(row.phone) },
     delivery: { address: String(row.address), city: String(row.city), province: String(row.province), postal: String(row.postal), note: String(row.customer_note) },
     items, subtotal: Number(row.subtotal), shipping: Number(row.shipping), total: Number(row.total),
-    payment: row.payment_method as 'cod' | 'bank', status: String(row.status), createdAt: String(row.created_at),
+    payment: row.payment_method as 'cod' | 'bank' | 'safepay', paymentStatus: String(row.payment_status || 'UNPAID'), status: String(row.status), createdAt: String(row.created_at),
   };
 }
 
@@ -112,7 +113,7 @@ export async function createOrder(input: {
   idempotencyKey: string;
 }) {
   const client = getSupabaseAdmin();
-  const { data: id, error } = await client.rpc('create_order', {
+  const { data: id, error } = await client.rpc(input.payment === 'safepay' ? 'create_safepay_order' : 'create_order', {
     p_items: input.items, p_customer: input.customer, p_delivery: input.delivery,
     p_payment: input.payment, p_idempotency_key: input.idempotencyKey,
   });

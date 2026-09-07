@@ -1,5 +1,6 @@
 import { createOrder, findOrderByContact, findOrderByToken } from '@/lib/supabase-store';
 import { assertSameOrigin, consumeRateLimit } from '@/lib/security';
+import { safepayReady } from '@/lib/safepay';
 
 export const runtime = 'nodejs';
 
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Valid email required' }, { status: 400 });
     if (String(body.phone || '').replace(/\D/g, '').length < 10)
       return Response.json({ error: 'Valid phone required' }, { status: 400 });
-    if (!['cod', 'bank'].includes(body.payment))
+    if (body.payment === 'safepay' && !await safepayReady()) return Response.json({ error: 'Card payments are currently unavailable. Choose another payment method.' }, { status: 503 });
+    if (!['cod', 'bank', 'safepay'].includes(body.payment))
       return Response.json(
         { error: 'Unsupported payment method' },
         { status: 400 },

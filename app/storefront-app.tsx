@@ -34,6 +34,7 @@ import { seedReviews, type Review } from '@/lib/reviews';
 import { addBagSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
 import { ProductDetailsEditor } from './product-details-editor';
+import { VisitorDashboard, trackActivity, ActivityPrivacySetting } from './visitor-activity';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -46,6 +47,7 @@ type Order = {
   shipping: number;
   total: number;
   payment: string;
+  paymentStatus?: string;
   status: string;
   createdAt: string;
 };
@@ -224,6 +226,7 @@ export default function StorefrontApp({
       // Persist selections before a full navigation to checkout can unmount React.
       localStorage.setItem('zyra-cart', JSON.stringify(next));
       setCart(next);
+      trackActivity('add_to_bag', `/products/${item.slug}`);
       if (buyNow) { location.assign('/checkout'); return true; }
     } catch (error) {
       setToast(error instanceof Error && error.name !== 'QuotaExceededError' ? error.message : 'Your bag could not be saved. Please enable browser storage.');
@@ -1989,9 +1992,12 @@ function CheckoutView({
   onComplete: () => void;
 }) {
   const [payment, setPayment] = useState('cod'),
-    [same, setSame] = useState(true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [card, setCard] = useState({ available: false, environment: 'sandbox' });
+  const requestKey = useRef<{ payload: string; key: string } | null>(null);
+  const [savedCardOrder, setSavedCardOrder] = useState('');
+  useEffect(() => { fetch('/api/payments/safepay').then(r => r.json()).then(setCard).catch(() => {}); }, []);
   const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.flatShipping,
     total = subtotal + shipping;
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -2004,11 +2010,14 @@ function CheckoutView({
     setError('');
     const data = new FormData(e.currentTarget);
     try {
+      if (savedCardOrder) { location.href = `/payment-return?order=${encodeURIComponent(savedCardOrder)}`; return; }
+      const payload = JSON.stringify({ items: cart, email: data.get('email'), phone: data.get('phone'), firstName: data.get('firstName'), lastName: data.get('lastName'), address: data.get('address'), city: data.get('city'), province: data.get('province'), postal: data.get('postal'), note: data.get('note'), payment });
+      if (requestKey.current?.payload !== payload) requestKey.current = { payload, key: crypto.randomUUID() };
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'idempotency-key': crypto.randomUUID(),
+          'idempotency-key': requestKey.current.key,
         },
         body: JSON.stringify({
           items: cart,
@@ -2027,6 +2036,14 @@ function CheckoutView({
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Order could not be created');
       const order = result as Order;
+      if (payment === 'safepay') {
+        setSavedCardOrder(order.token);
+        const session = await fetch('/api/payments/safepay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: order.token }) });
+        const paymentResult = await session.json();
+        if (!session.ok) throw new Error(paymentResult.error || 'Payment could not be opened.');
+        location.assign(paymentResult.url);
+        return;
+      }
       localStorage.setItem('zyra-last-order', JSON.stringify(order));
       onComplete();
       location.href = `/order-confirmation/${order.token}`;
@@ -2057,8 +2074,11 @@ function CheckoutView({
       </header>
       <form onSubmit={submit} className="checkout-layout">
         <section>
-          <p className="eyebrow">01 / Contact</p>
-          <h1>Where should we send it?</h1>
+          <a className="inline-link" href="/collections">← Continue shopping</a>
+          <h1>Make it yours.</h1>
+          <p className="checkout-intro">Checkout as a guest. Your order, delivery and payment—all in one place.</p>
+          <div className="checkout-mobile-total"><span>Order total · {cart.reduce((n, item) => n + item.qty, 0)} items</span><strong>{money(total)}</strong><a href="#checkout-summary">View details ↓</a></div>
+          <p className="eyebrow form-section">01 / Contact</p>
           <div className="form-grid">
             <label className="wide">
               Email
@@ -2110,7 +2130,7 @@ function CheckoutView({
               </select>
             </label>
             <label>
-              Postal code
+              Postal code (optional)
               <input
                 name="postal"
                 inputMode="numeric"
@@ -2132,6 +2152,7 @@ function CheckoutView({
             <strong>{shipping ? money(shipping) : 'FREE'}</strong>
           </label>
           <p className="eyebrow form-section">04 / Payment</p>
+          {card.available && <label className={`choice ${payment === 'safepay' ? 'selected' : ''}`}><input type="radio" name="payment" checked={payment === 'safepay'} onChange={() => setPayment('safepay')} /><span><b>Debit / credit card · Safepay{card.environment === 'sandbox' ? ' (test mode)' : ''}</b><small>Pay {money(total)} securely on Safepay. Your card details stay with the payment provider.</small></span><CreditCard aria-hidden="true" /></label>}
           <label className={`choice ${payment === 'cod' ? 'selected' : ''}`}>
             <input
               type="radio"
@@ -2156,42 +2177,18 @@ function CheckoutView({
               <small>Instructions appear after placing order</small>
             </span>
           </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={same}
-              onChange={(e) => setSame(e.target.checked)}
-            />{' '}
-            Billing address is the same as shipping
-          </label>
-          {!same && (
-            <div className="form-grid billing">
-              <label className="wide">
-                Billing address
-                <input required name="billingAddress" />
-              </label>
-              <label>
-                Billing city
-                <input required name="billingCity" />
-              </label>
-              <label>
-                Billing postal code
-                <input name="billingPostal" />
-              </label>
-            </div>
-          )}
+          <p className="checkout-payment-note">{payment === 'safepay' ? 'Next: Safepay’s secure payment page. The full order total is payable in advance.' : payment === 'cod' ? 'Nothing to pay online. Pay your order total when your parcel arrives.' : 'Your order stays pending until your bank transfer is verified.'}</p>
           {error && (
             <p className="form-error" role="alert">
               {error}
             </p>
           )}
           <button className="dark-button place-order" disabled={busy}>
-            {busy ? 'Creating secure order…' : `Place order · ${money(total)}`}{' '}
+            {busy ? 'Please wait…' : savedCardOrder ? 'Check saved order' : `${payment === 'safepay' ? 'Continue to secure payment' : payment === 'cod' ? 'Place cash-on-delivery order' : 'Place order'} · ${money(total)}`}{' '}
             <ArrowRight />
           </button>
           <p className="checkout-note">
-            <ShieldCheck /> Prices and availability are rechecked on the server
-            before your order is created.
+            <ShieldCheck /> Review your total before you order. <a href="/pages/shipping">Delivery</a> · <a href="/pages/returns">Exchanges</a> · <a href="/pages/privacy">Privacy</a>
           </p>
         </section>
         <OrderSummary cart={cart} subtotal={subtotal} shipping={shipping} catalog={catalog} />
@@ -2212,7 +2209,7 @@ function OrderSummary({
   catalog: Product[];
 }) {
   return (
-    <aside className="checkout-summary">
+    <aside className="checkout-summary" id="checkout-summary">
       <h2>Order summary</h2>
       {cart.map((item, i) => {
         const p = catalog.find((product) => product.slug === item.slug);
@@ -2279,15 +2276,14 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
       <div className="confirmation-mark">
         <Check />
       </div>
-      <p className="eyebrow">Order confirmed</p>
+      <p className="eyebrow">{order.status === 'PENDING' ? 'Order saved · payment pending' : 'Order received'}</p>
       <h1>
         Thank you.
         <br />
         We’ve got it.
       </h1>
       <p>
-        A confirmation is ready for <b>{order.customer.email}</b>. No real email is sent
-        in demo mode.
+        Your order reference is <b>{order.number}</b>. Keep it for tracking and support.
       </p>
       <div className="confirmation-grid">
         <div>
@@ -2301,7 +2297,7 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
         <div>
           <small>Payment</small>
           <b>
-            {order.payment === 'bank'
+            {order.payment === 'safepay' ? `Safepay · ${order.paymentStatus === 'PAID' ? 'Paid' : order.paymentStatus === 'PAID_REVIEW_REQUIRED' ? 'Paid — contact support' : 'Awaiting confirmation'}` : order.payment === 'bank'
               ? 'Awaiting transfer'
               : 'Cash on delivery'}
           </b>
@@ -2319,6 +2315,7 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
           </p>
         </div>
       )}
+      {order.payment === 'safepay' && order.paymentStatus !== 'PAID' && <a className="outline-button" href={`/payment-return?order=${encodeURIComponent(token)}`}>Check payment status</a>}
       <a className="dark-button" href="/collections">
         Continue shopping
       </a>
@@ -2649,7 +2646,7 @@ function AdminView({
           ZYRA<span>®</span>
         </a>
         <p className="eyebrow">Commerce OS</p>
-        {['dashboard', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
+        {['dashboard', 'visitors', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
           <button
             key={x}
             className={tab === x ? 'active' : ''}
@@ -2678,6 +2675,7 @@ function AdminView({
             View store ↗
           </a>
         </header>
+        {tab === 'visitors' && <VisitorDashboard />}
         {tab === 'dashboard' && (
           <>
             <div className="stat-grid">
@@ -3198,7 +3196,7 @@ function AdminOrders({ orders, onStatus, onSelect }: { orders: Order[]; onStatus
         <div key={order.number}>
           <button className="order-link" onClick={() => onSelect(order)}><b>{order.number}</b><small>{new Date(order.createdAt).toLocaleString('en-PK')}</small></button>
           <span><b>{order.customer.firstName} {order.customer.lastName}</b><small>{order.customer.email}<br />{order.customer.phone}</small></span>
-          <span><b>{money(order.total)}</b><small>{order.payment === 'cod' ? 'Cash on delivery' : 'Bank transfer'}</small></span>
+          <span><b>{money(order.total)}</b><small>{order.payment === 'safepay' ? `Safepay · ${order.paymentStatus || 'UNPAID'}` : order.payment === 'cod' ? 'Cash on delivery' : 'Bank transfer'}</small></span>
           <span className="status">{order.status.replaceAll('_', ' ')}</span>
           <select aria-label={`Update ${order.number} status`} value={order.status} onChange={(event) => onStatus(order, event.target.value)}>
             <option value={order.status}>{order.status.replaceAll('_', ' ')}</option>
@@ -3223,6 +3221,14 @@ function OrderDetail({ order, onClose, onStatus, catalog }: { order: Order; onCl
 }
 
 function InfoPage({ path, settings }: { path: string; settings: StoreSettings }) {
+  if (path === '/pages/privacy') return <main className="simple-page"><div className="pdp-service-page">
+    <p className="eyebrow">ZYRA / Customer care</p><h1>Privacy policy</h1>
+    <h2>Order information</h2><p>When you place an order, we use the contact, delivery and product details you provide to process your order, arrange delivery and help with support requests.</p>
+    <h2>Website activity</h2><p>Where activity analytics is enabled, we automatically record pages and products viewed, additions to your bag, checkout page visits, timestamps and a broad device category. This helps us understand how the store is used. Analytics does not identify you by name or record form entries, passwords, payment details, raw IP addresses or search terms.</p>
+    <h2>Session cookie and retention</h2><p>A random session identifier groups activity from the same browser. Its cookie expires after 30 minutes of inactivity. Activity is kept for up to 30 days and expired records are removed the next time activity is recorded or the dashboard is opened. Only authorised administrators can access the dashboard. These records are separate from order records.</p>
+    <ActivityPrivacySetting />
+    <h2>Questions about your data</h2><p>Contact <a className="inline-link" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a> for privacy questions or requests relating to your order information.</p>
+  </div></main>;
   const name =
     path.split('/').filter(Boolean).pop()?.replaceAll('-', ' ') || 'Page';
   if (['contact', 'shipping', 'returns'].includes(name)) {
@@ -3324,7 +3330,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
   const legalLinks = [
     { label: 'Authenticity Verification', href: '/pages/privacy' },
     { label: 'Terms of Dispatch & Sale', href: '/pages/terms' },
-    { label: 'Data Privacy Statement', href: '/pages/privacy' },
+    { label: 'Privacy Policy', href: '/pages/privacy' },
     { label: 'IP & Trademark Protection', href: '/pages/terms' },
   ];
 

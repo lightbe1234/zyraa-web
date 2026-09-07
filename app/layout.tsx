@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './storefront.css';
 import './commerce-enhancements.css';
 import './product-detail.css';
+import './visitor-activity.css';
+import './checkout-polish.css';
+import { ActivityConsent } from './visitor-activity';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({
@@ -50,6 +53,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
+        <ActivityConsent />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
