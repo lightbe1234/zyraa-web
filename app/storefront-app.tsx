@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,7 +11,6 @@ import {
   CircleUserRound,
   CreditCard,
   Eye,
-  Heart,
   Menu,
   Minus,
   PackageCheck,
@@ -32,6 +31,9 @@ import {
   type Product,
 } from '@/lib/catalog';
 import { seedReviews, type Review } from '@/lib/reviews';
+import { addBagSelection } from '@/lib/product-purchase';
+import { ProductDetail } from './product-detail';
+import { ProductDetailsEditor } from './product-details-editor';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -214,23 +216,23 @@ export default function StorefrontApp({
       document.body.style.overflow = '';
     };
   }, [menuOpen, searchOpen, cartOpen]);
-  const add = (item: CartItem) => {
-    setCart((current) => {
-      const found = current.find(
-        (x) =>
-          x.slug === item.slug &&
-          x.size === item.size &&
-          x.color === item.color,
-      );
-      return found
-        ? current.map((x) =>
-            x === found ? { ...x, qty: x.qty + item.qty } : x,
-          )
-        : [...current, item];
-    });
+  const add = (item: CartItem, buyNow = false) => {
+    try {
+      const product = catalog.find((entry) => entry.slug === item.slug);
+      if (!product) throw new Error('This product is no longer available.');
+      const next = addBagSelection(cart, item, product);
+      // Persist selections before a full navigation to checkout can unmount React.
+      localStorage.setItem('zyra-cart', JSON.stringify(next));
+      setCart(next);
+      if (buyNow) { location.assign('/checkout'); return true; }
+    } catch (error) {
+      setToast(error instanceof Error && error.name !== 'QuotaExceededError' ? error.message : 'Your bag could not be saved. Please enable browser storage.');
+      return false;
+    }
     setCartOpen(true);
     setToast('Added to your bag');
     setTimeout(() => setToast(''), 2500);
+    return true;
   };
   const update = (index: number, qty: number) =>
     setCart((current) =>
@@ -289,7 +291,7 @@ export default function StorefrontApp({
           collections={collectionsList}
         />
       ) : path.startsWith('/products/') ? (
-        <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} />
+        <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} settings={storeSettings} cart={cart} ready={ready} />
       ) : path === '/collections' ||
         path.startsWith('/collections/') ||
         path === '/search' ? (
@@ -323,7 +325,7 @@ export default function StorefrontApp({
           onCollectionsChange={setCollectionsList}
         />
       ) : (
-        <InfoPage path={path} />
+        <InfoPage path={path} settings={storeSettings} />
       )}
       {storefront && <Footer settings={storeSettings} collections={collectionsList} />}
       <Drawer open={menuOpen} close={() => setMenuOpen(false)} collections={collectionsList} />
@@ -627,61 +629,73 @@ function getProductImages(product: Product) {
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const gallery = getProductImages(product);
-  const discount = product.compareAt
+  const gallery = [...new Set(getProductImages(product))];
+  const track = useRef<HTMLDivElement>(null);
+  const [activeImage, setActiveImage] = useState(0);
+  const onSale = Boolean(product.compareAt && product.compareAt > product.price);
+  const discount = onSale && product.compareAt
     ? Math.round((1 - product.price / product.compareAt) * 100)
     : 0;
+  const showImage = (index: number) => {
+    const element = track.current;
+    if (!element) return;
+    element.scrollTo({
+      left: index * element.clientWidth,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
+  };
   return (
     <article className="product-card">
-      <a href={`/products/${product.slug}`}>
-        <div className="product-image">
-          <img
-            className="primary"
-            src={gallery[0]}
-            alt={product.name}
-            loading="lazy"
-          />
-          <img
-            className="alternate"
-            src={gallery[1] || gallery[0]}
-            alt=""
-            loading="lazy"
-          />
+        <div className="product-image product-card-media">
+          <div className="product-card-track" ref={track}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              setActiveImage(Math.round(element.scrollLeft / element.clientWidth));
+            }}>
+            {gallery.map((src, index) => (
+              <a href={`/products/${product.slug}`} key={src} tabIndex={index === activeImage ? 0 : -1}
+                aria-label={`View ${product.name}, photo ${index + 1} of ${gallery.length}`}>
+                <img src={src} alt={`${product.name} — view ${index + 1}`} loading="lazy" decoding="async" />
+              </a>
+            ))}
+          </div>
           {product.stock === 0 ? (
             <span className="product-badge">Sold out</span>
           ) : discount ? (
-            <span className="product-badge sale">-{discount}%</span>
-          ) : product.stock < 5 ? (
-            <span className="product-badge">Low stock</span>
+            <span className="product-badge sale">Save {discount}%</span>
+          ) : product.newArrival ? (
+            <span className="product-badge">New arrival</span>
           ) : null}
-          <button
-            className="heart"
-            aria-label={`Save ${product.name}`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.toggle('saved');
-            }}
-          >
-            <Heart />
-          </button>
+          {gallery.length > 1 && (
+            <div className="product-card-gallery-nav" aria-label={`${product.name} photos`}>
+              <button type="button" aria-label={`Previous photo of ${product.name}`} disabled={activeImage === 0}
+                onClick={() => showImage(activeImage - 1)}><ArrowLeft aria-hidden="true" /></button>
+              <div className="product-card-dots">
+                {gallery.map((src, index) => (
+                  <button type="button" key={src} aria-label={`Show photo ${index + 1} of ${product.name}`}
+                    aria-pressed={index === activeImage} onClick={() => showImage(index)}><span /></button>
+                ))}
+              </div>
+              <button type="button" aria-label={`Next photo of ${product.name}`} disabled={activeImage === gallery.length - 1}
+                onClick={() => showImage(activeImage + 1)}><ArrowRight aria-hidden="true" /></button>
+            </div>
+          )}
         </div>
         <div className="product-meta">
           <p>{product.category}</p>
-          <h3>{product.name}</h3>
-          {product.reviews > 0 && (
-            <small className="rating">
-              ★★★★★{' '}
-              <span>
-                {product.rating} ({product.reviews} demo)
-              </span>
-            </small>
-          )}
-          <div>
+          <h3><a href={`/products/${product.slug}`}>{product.name}</a></h3>
+          <div className="product-card-price">
             <strong>{money(product.price)}</strong>
-            {product.compareAt && <del>{money(product.compareAt)}</del>}
+            {onSale && <del><span className="sr-only">Original price </span>{money(product.compareAt!)}</del>}
           </div>
+          <p className="product-card-options">
+            <span title={product.sizes.join(' / ')}>{product.sizes.length ? product.sizes.slice(0, 4).join(' / ') : 'See sizing'}{product.sizes.length > 4 ? ` +${product.sizes.length - 4}` : ''}</span>
+            {product.colors.length > 0 && <span>{product.colors.length} {product.colors.length === 1 ? 'colour' : 'colours'}</span>}
+          </p>
+          <a className="product-card-link" href={`/products/${product.slug}`} aria-label={`View ${product.name}`}>
+            {product.stock === 0 ? 'View details' : 'View product'} <ArrowRight aria-hidden="true" />
+          </a>
         </div>
-      </a>
     </article>
   );
 }
@@ -690,11 +704,14 @@ function Rail({
   title,
   label,
   list,
+  description,
 }: {
   title: string;
   label: string;
   list: Product[];
+  description?: string;
 }) {
+  if (!list.length) return null;
   return (
     <section className="section-shell product-section">
       <div className="section-heading">
@@ -702,6 +719,7 @@ function Rail({
           <p className="eyebrow">{label}</p>
           <h2>{title}</h2>
         </div>
+        {description && <p className="product-section-intro">{description}</p>}
       </div>
       <div className="product-grid">
         {list.slice(0, 4).map((p) => (
@@ -1618,7 +1636,12 @@ function Home({
         <p className="hero-caption">Karachi / 24°51′N 67°00′E</p>
       </section>
       )}
-      {enabled('best-sellers') && <Rail title="Best sellers" label="Most wanted" list={catalog} />}
+      <div className="shopping-assurances" aria-label="Shopping at ZYRA">
+        <span><CreditCard aria-hidden="true" /> Cash on delivery</span>
+        <span><Truck aria-hidden="true" /> Free shipping {settings.freeShippingThreshold > 0 ? `over ${money(settings.freeShippingThreshold)}` : 'on all orders'}</span>
+        <a href="/track-order"><PackageCheck aria-hidden="true" /> Track your order <ChevronRight aria-hidden="true" /></a>
+      </div>
+      {enabled('best-sellers') && <Rail title="In rotation" label="The ZYRA edit" description="Find your next everyday favourite. Explore the details, choose your fit, make it yours." list={catalog} />}
       {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
         <div className="manifesto-minimal">
@@ -1636,9 +1659,10 @@ function Home({
       )}
       {enabled('core-forms') && (
       <Rail
-        title="Core forms"
-        label="Wardrobe architecture"
-        list={catalog.slice(6)}
+        title="Everyday statements"
+        label="Wear it your way"
+        description="Graphic pieces and easy layers. A fresh perspective on your daily wardrobe."
+        list={catalog.slice(4)}
       />
       )}
       <section className="editorial-grid">
@@ -1665,6 +1689,7 @@ function Home({
       <Rail
         title="Lower division"
         label="Movement pieces"
+        description="Start from the ground up. Find the pair that brings your whole look together."
         list={catalog.filter(
           (p) => p.category === 'Bottoms' || p.category === 'Essentials',
         )}
@@ -1823,7 +1848,7 @@ function CatalogView({
         <p>
           {category
             ? 'A focused edit of weight, proportion and everyday utility.'
-            : 'Twenty-four original pieces across six core categories.'}
+            : 'Explore the ZYRA collection. Find your fit, colour and next everyday favourite.'}
         </p>
       </div>
       <div className="catalog-count">
@@ -1846,224 +1871,16 @@ function CatalogView({
   );
 }
 
-function ProductView({
-  slug,
-  add,
-  catalog,
-}: {
-  slug: string;
-  add: (item: CartItem) => void;
-  catalog: Product[];
+function ProductView({ slug, add, catalog, settings, cart, ready }: {
+  slug: string; add: (item: CartItem, buyNow?: boolean) => boolean;
+  catalog: Product[]; settings: StoreSettings; cart: CartItem[]; ready: boolean;
 }) {
-  const product = catalog.find((entry) => entry.slug === slug) || catalog[0];
-  const gallery = getProductImages(product);
-  const [size, setSize] = useState(''),
-    [color, setColor] = useState(product.colors[0]),
-    [qty, setQty] = useState(1),
-    [image, setImage] = useState(gallery[0]),
-    [error, setError] = useState(''),
-    [chart, setChart] = useState(false);
-  useEffect(() => {
-    setSize('');
-    setColor(product.colors[0]);
-    setQty(1);
-    setImage(getProductImages(product)[0]);
-    setError('');
-  }, [product.slug]);
-  const submit = (buy = false) => {
-    if (!size) {
-      setError('Choose a size before adding this piece.');
-      return;
-    }
-    add({ slug: product.slug, size, color, qty });
-    if (buy) location.href = '/checkout';
-  };
-  return (
-    <main className="product-page">
-      <div className="product-gallery">
-        <div className="thumbs">
-          {gallery.map((galleryImage, index) => (
-            <button className={image === galleryImage ? 'active' : ''} onClick={() => setImage(galleryImage)} key={`${galleryImage}-${index}`} aria-label={`Show ${product.name} image ${index + 1}`}>
-              <img src={galleryImage} alt={`${product.name} view ${index + 1}`} />
-            </button>
-          ))}
-        </div>
-        <button
-          className="main-media"
-          onClick={() => setImage(gallery[(gallery.indexOf(image) + 1) % gallery.length])}
-          aria-label="Show next product image"
-        >
-          <img className="gallery-fade" key={image} src={image} alt={product.name} />
-          <span>Click for next view · {gallery.indexOf(image) + 1}/{gallery.length}</span>
-        </button>
-        <div className="mobile-product-strip" aria-label={`${product.name} image gallery`}>
-          {gallery.map((galleryImage, index) => <img src={galleryImage} alt={`${product.name} view ${index + 1}`} key={`${galleryImage}-mobile-${index}`} />)}
-        </div>
-      </div>
-      <section className="product-info">
-        <p className="eyebrow">
-          {product.category} / {product.collection}
-        </p>
-        <h1>{product.name}</h1>
-        {product.reviews ? (
-          <a className="rating-link" href="#reviews">
-            ★★★★★ {product.rating} · {product.reviews} demo reviews
-          </a>
-        ) : (
-          <span className="rating-link">New release · no reviews yet</span>
-        )}
-        <div className="product-price">
-          <strong>{money(product.price)}</strong>
-          {product.compareAt && <del>{money(product.compareAt)}</del>}
-        </div>
-        <p>{product.description}</p>
-        <fieldset>
-          <legend>
-            Color — <b>{color}</b>
-          </legend>
-          <div className="option-row">
-            {product.colors.map((c) => (
-              <button
-                className={color === c ? 'selected' : ''}
-                onClick={() => setColor(c)}
-                key={c}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>
-            Size <button onClick={() => setChart(true)}>Size guide</button>
-          </legend>
-          <div className="size-row">
-            {product.sizes.map((s) => (
-              <button
-                className={size === s ? 'selected' : ''}
-                onClick={() => {
-                  setSize(s);
-                  setError('');
-                }}
-                key={s}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="buy-row">
-          <div className="quantity">
-            <button
-              onClick={() => setQty(Math.max(1, qty - 1))}
-              aria-label="Decrease quantity"
-            >
-              <Minus />
-            </button>
-            <span>{qty}</span>
-            <button
-              onClick={() => setQty(qty + 1)}
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
-          </div>
-          <button
-            className="dark-button"
-            disabled={product.stock === 0}
-            onClick={() => submit()}
-          >
-            {product.stock === 0 ? 'Sold out' : 'Add to bag'} <ShoppingBag />
-          </button>
-        </div>
-        <button
-          className="outline-button full"
-          disabled={product.stock === 0}
-          onClick={() => submit(true)}
-        >
-          Buy now
-        </button>
-        <p className={`stock ${product.stock < 5 ? 'low' : ''}`}>
-          {product.stock === 0
-            ? 'Currently unavailable'
-            : product.stock < 5
-              ? `Only ${product.stock} left in this release`
-              : 'In stock · dispatches in 1–2 working days'}
-        </p>
-        <details open>
-          <summary>
-            Description <ChevronDown />
-          </summary>
-          <p>{product.description}</p>
-        </details>
-        <details>
-          <summary>
-            Composition & care <ChevronDown />
-          </summary>
-          <p>
-            100% combed cotton. Cold wash inside out. Do not tumble dry or iron
-            artwork.
-          </p>
-        </details>
-        <details>
-          <summary>
-            Delivery & exchange <ChevronDown />
-          </summary>
-          <p>
-            Tracked nationwide delivery. One complimentary size exchange within
-            14 days.
-          </p>
-        </details>
-      </section>
-      {chart && (
-        <div className="overlay modal-overlay">
-          <section className="modal">
-            <div className="panel-head">
-              <b>SIZE GUIDE / CM</b>
-              <button className="icon-button" onClick={() => setChart(false)}>
-                <X />
-              </button>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Size</th>
-                  <th>Chest</th>
-                  <th>Length</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['S', '54', '69'],
-                  ['M', '57', '72'],
-                  ['L', '60', '75'],
-                  ['XL', '63', '78'],
-                ].map((r) => (
-                  <tr key={r[0]}>
-                    {r.map((c) => (
-                      <td key={c}>{c}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        </div>
-      )}
-      <section id="reviews" className="related">
-        <Rail
-          title="Complete the rotation"
-          label="Related pieces"
-          list={catalog.filter((p) => p.slug !== product.slug).slice(0, 4)}
-        />
-      </section>
-    </main>
-  );
+  const product = catalog.find((entry) => entry.slug === slug);
+  if (!product) return <main className="empty-state"><h1>Product unavailable</h1><p>This piece is no longer available.</p><a className="outline-button" href="/collections">Explore the collection</a></main>;
+  const recommendations = catalog.filter((entry) => entry.slug !== slug && entry.active !== false)
+    .sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category) || Number(b.collection === product.collection) - Number(a.collection === product.collection));
+  return <ProductDetail key={product.slug} product={product} settings={settings} cart={cart} add={add} ready={ready}
+    related={<Rail title="You may also like" label="Complete your look" list={recommendations.slice(0, 4)} />} />;
 }
 
 function CartView({
@@ -3305,6 +3122,7 @@ function ProductEditor({
         ))}
         <label className="wide">Description<textarea name="description" required rows={4} defaultValue={product?.description} /></label>
       </div>
+      {product && <ProductDetailsEditor slug={product.slug} sizes={product.sizes} />}
       <div className="admin-checks"><label><input type="checkbox" name="featured" defaultChecked={product?.featured} /> Featured</label><label><input type="checkbox" name="newArrival" defaultChecked={product?.newArrival ?? true} /> New arrival</label></div>
       {error && <p className="form-error">{error}</p>}
       <div className="admin-form-actions"><button type="button" className="outline-button" onClick={onCancel}>Cancel</button><button className="dark-button" disabled={busy}>{busy ? 'Saving…' : 'Save product'}</button></div>
@@ -3404,9 +3222,32 @@ function OrderDetail({ order, onClose, onStatus, catalog }: { order: Order; onCl
   </aside></div>;
 }
 
-function InfoPage({ path }: { path: string }) {
+function InfoPage({ path, settings }: { path: string; settings: StoreSettings }) {
   const name =
     path.split('/').filter(Boolean).pop()?.replaceAll('-', ' ') || 'Page';
+  if (['contact', 'shipping', 'returns'].includes(name)) {
+    return <main className="simple-page"><div className="pdp-service-page">
+      <p className="eyebrow">ZYRA / Customer care</p>
+      <h1>{name === 'contact' ? 'Here to help' : name === 'shipping' ? 'Delivery information' : 'Size exchanges'}</h1>
+      {name === 'contact' ? <>
+        <p>Need help choosing a size, checking a product detail or following up on an order? Contact the ZYRA team.</p>
+        <h2>Before you order</h2><p>Share the product name and the size you’re considering. Ask for garment measurements, fabric details or care instructions if they’re not listed.</p>
+        <h2>Already ordered?</h2><p>Include your order number so we can help with delivery or an exchange.</p>
+        <a className="inline-link" href="/track-order">Track your order</a>
+      </> : name === 'shipping' ? <>
+        <p>{settings.flatShipping === 0 ? 'Standard delivery is free.' : `Standard delivery is ${money(settings.flatShipping)}.`} {settings.freeShippingThreshold > 0 ? `Orders of ${money(settings.freeShippingThreshold)} or more qualify for free shipping.` : 'All orders qualify for free shipping.'}</p>
+        <h2>Your delivery total</h2><p>The final delivery charge and total are shown at checkout before you place your order. Cash on delivery and manual bank transfer are available.</p>
+        <h2>Order updates</h2><p>Use your order number and checkout email or phone to check your order status. Contact us if you need help with your address or delivery.</p>
+        <a className="inline-link" href="/track-order">Check order status</a>
+      </> : <>
+        <p>You can request a size exchange within 14 days for an unworn item, subject to size availability.</p>
+        <h2>How to request an exchange</h2><p>Contact us with your order number, product name and the size you need. Keep the item unworn and retain its tags and packaging.</p>
+        <h2>Before sending anything back</h2><p>Our team will confirm eligibility, availability, return instructions and any delivery charges. Please contact us before returning your item.</p>
+      </>}
+      <p><a className="inline-link" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a></p>
+      <a className="dark-button" href="/collections">Continue shopping <ArrowRight /></a>
+    </div></main>;
+  }
   return (
     <main className="simple-page">
       <div>
