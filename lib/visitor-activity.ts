@@ -16,8 +16,10 @@ export class VisitorActivityStore {
       CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, visitor TEXT NOT NULL, action TEXT NOT NULL, path TEXT NOT NULL, device TEXT NOT NULL, created INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS events_created ON events(created);
       CREATE TABLE IF NOT EXISTS limits(key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires INTEGER NOT NULL);`);
+    const columns = this.db.prepare('PRAGMA table_info(events)').all();
+    if (!columns.some(column => column.name === 'is_test')) this.db.exec('ALTER TABLE events ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0');
   }
-  record(visitor: string, action: string, path: string, device: string, now = Date.now()) {
+  record(visitor: string, action: string, path: string, device: string, now = Date.now(), isTest = false) {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       this.prune(now);
@@ -27,19 +29,20 @@ export class VisitorActivityStore {
         const row = this.db.prepare('UPDATE limits SET count=count+1 WHERE key=? RETURNING count').get(key);
         if (Number(row?.count) > max) { this.db.exec('COMMIT'); return false; }
       }
-      this.db.prepare('INSERT INTO events(visitor,action,path,device,created) VALUES (?,?,?,?,?)').run(visitor, action, path, device, now);
+      this.db.prepare('INSERT INTO events(visitor,action,path,device,created,is_test) VALUES (?,?,?,?,?,?)').run(visitor, action, path, device, now, isTest ? 1 : 0);
       this.db.exec('COMMIT'); return true;
     } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
   private prune(now: number) { this.db.prepare('DELETE FROM events WHERE created < ?').run(now - 30 * 86400000); }
-  read(now = Date.now()) {
+  read(now = Date.now(), isTest = false) {
     this.prune(now);
     return {
       summary: this.db.prepare(`SELECT COUNT(DISTINCT visitor) AS visitors, SUM(action='page_view') AS views,
-        SUM(action='add_to_bag') AS bagAdds, SUM(action='checkout_view') AS checkouts FROM events`).get(),
+        SUM(action='add_to_bag') AS bagAdds, SUM(action='checkout_view') AS checkouts FROM events WHERE is_test=?`).get(isTest ? 1 : 0),
       visitors: this.db.prepare(`SELECT visitor, MAX(created) AS lastSeen, MIN(created) AS firstSeen, COUNT(*) AS events,
-        MAX(device) AS device FROM events GROUP BY visitor ORDER BY lastSeen DESC LIMIT 100`).all(),
-      events: this.db.prepare('SELECT visitor, action, path, device, created FROM events ORDER BY created DESC LIMIT 1000').all(),
+        MAX(device) AS device FROM events WHERE is_test=? GROUP BY visitor ORDER BY lastSeen DESC LIMIT 100`).all(isTest ? 1 : 0),
+      events: this.db.prepare('SELECT visitor, action, path, device, created FROM events WHERE is_test=? ORDER BY created DESC LIMIT 1000').all(isTest ? 1 : 0),
+      mode: isTest ? 'preview' : 'customers',
     };
   }
   close() { this.db.close(); }

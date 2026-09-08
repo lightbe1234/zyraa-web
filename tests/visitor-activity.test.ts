@@ -15,3 +15,14 @@ test('activity is durable, rate limited, and expires after 30 days', () => {
     assert.equal(store.read(31*86400000).visitors.length, 0);
   } finally { store.close(); }
 });
+test('admin store previews never inflate customer visitor counts', () => {
+  const store = new VisitorActivityStore(':memory:');
+  try {
+    store.record('admin','page_view','/','Desktop',1000,true);
+    store.record('customer','page_view','/products/tee','Mobile',1000);
+    assert.equal(store.read(1000).summary?.visitors,1);
+    assert.equal(store.read(1000).events[0].visitor,'customer');
+    assert.equal(store.read(1000,true).events[0].visitor,'admin');
+    assert.equal(store.read(1000,true).mode,'preview');
+  } finally { store.close(); }
+});

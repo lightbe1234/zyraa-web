@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './storefront.css';
+import './collection-discovery.css';
+import './brand-polish.css';
+import './customer-help.css';
+import './order-tracking.css';
 import './commerce-enhancements.css';
 import './product-detail.css';
 import './visitor-activity.css';
 import './checkout-polish.css';
+import './payment-setup.css';
 import { ActivityConsent } from './visitor-activity';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });

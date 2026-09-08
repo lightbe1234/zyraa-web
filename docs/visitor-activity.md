@@ -1,6 +1,8 @@
 # Visitor activity (local)
 
-Admin → visitors displays anonymous sessions, public page views, successful bag additions and checkout views. Activity starts automatically without a permission popup and is disclosed at `/pages/privacy`, with a browser opt-out control. Previous declines, Do Not Track and Global Privacy Control are respected. Browser-reported events are not verified purchases. Admin sessions are excluded server-side. The checkout URL is recorded without query strings; order tokens, contact details, search terms, raw user agents and IP addresses are not stored.
+Admin → visitors displays anonymous sessions, public page views, successful bag additions and checkout views. Activity starts automatically without a permission popup and is disclosed at `/pages/privacy`, with a browser opt-out control. Previous declines, Do Not Track and Global Privacy Control are respected. Browser-reported events are not verified purchases. Signed-in admin store visits now appear separately under Admin preview and never increase Customers totals. Admin-page activity is not recorded. Browser diagnostics explain opt-outs and blocked storage. The checkout URL is recorded without query strings; order tokens, contact details, search terms, raw user agents and IP addresses are not stored.
+
+Browser tests verify an actual anonymous page view reaches the customer dashboard and that an authenticated store preview reaches Admin preview. The anonymous test removes only its own temporary telemetry so customer totals are not inflated.
 
 Data persists in ignored `data/visitor-activity.sqlite`. Events expire after 30 days on the next read/write. The signed HttpOnly visitor cookie expires after 30 minutes of inactivity. Dashboard reads require the existing admin session; event writes require the same origin and are rate limited transactionally. A new privacy choice stops future analytics; existing records expire under retention.
 

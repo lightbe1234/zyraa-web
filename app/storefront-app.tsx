@@ -12,13 +12,16 @@ import {
   CreditCard,
   Eye,
   Menu,
+  Landmark,
   Minus,
   PackageCheck,
+  PackageOpen,
   Pencil,
   Plus,
   Search,
   ShieldCheck,
   ShoppingBag,
+  Shirt,
   Trash2,
   Truck,
   X,
@@ -33,8 +36,13 @@ import {
 import { seedReviews, type Review } from '@/lib/reviews';
 import { addBagSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
+import { CustomerHelp } from './customer-help';
+import { OrderTracking } from './order-tracking';
 import { ProductDetailsEditor } from './product-details-editor';
-import { VisitorDashboard, trackActivity, ActivityPrivacySetting } from './visitor-activity';
+import { VisitorDashboard, trackActivity } from './visitor-activity';
+import { PaymentSetup } from './payment-setup';
+import { checkoutAttempt } from '@/lib/checkout-attempt';
+import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -88,7 +96,7 @@ const defaultStoreSettings: StoreSettings = {
 };
 const announcements = [
   'Free shipping across Pakistan over Rs. 4,999',
-  '14-day size exchange on unworn pieces',
+  '7-day size exchange on unworn pieces',
   'Cash on delivery available nationwide',
 ];
 
@@ -122,17 +130,20 @@ export default function StorefrontApp({
   initialSettings,
   initialSections,
   initialCollections,
+  initialHomeCollectionCards,
 }: {
   path: string;
   initialCatalog?: Product[];
   initialSettings?: StoreSettings;
   initialSections?: ContentSection[];
   initialCollections?: Category[];
+  initialHomeCollectionCards?: HomeCollectionCard[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]),
     [catalog, setCatalog] = useState<Product[]>(initialCatalog?.length ? initialCatalog : seededProducts),
     [storeSettings, setStoreSettings] = useState<StoreSettings>(initialSettings || defaultStoreSettings),
     [homeSections, setHomeSections] = useState<ContentSection[]>(initialSections || []),
+    [homeCollectionCards, setHomeCollectionCards] = useState<HomeCollectionCard[]>(initialHomeCollectionCards ?? defaultHomeCollectionCards),
     [ready, setReady] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
@@ -185,10 +196,11 @@ export default function StorefrontApp({
     }
     fetch('/api/store-config')
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((value: { settings: StoreSettings; sections: ContentSection[]; collections: Category[] }) => {
+      .then((value: { settings: StoreSettings; sections: ContentSection[]; collections: Category[]; homeCollectionCards: HomeCollectionCard[] }) => {
         setStoreSettings(value.settings);
         setHomeSections(value.sections);
         if (value.collections?.length) setCollectionsList(value.collections);
+        if (Array.isArray(value.homeCollectionCards)) setHomeCollectionCards(value.homeCollectionCards);
       })
       .catch(() => setToast('Store settings are temporarily unavailable.'));
   }, []);
@@ -256,7 +268,7 @@ export default function StorefrontApp({
         <>
           {countdown && (
             <div className="promo">
-              <span>PRIVATE SALE • UP TO 30% OFF</span>
+              <span>TREND-LED STYLE. QUALITY FABRICS.</span>
               <span aria-live="off">ENDS IN {countdown}</span>
             </div>
           )}
@@ -292,6 +304,7 @@ export default function StorefrontApp({
           onAddReview={addReview}
           onDeleteReview={deleteReview}
           collections={collectionsList}
+          homeCollectionCards={homeCollectionCards}
         />
       ) : path.startsWith('/products/') ? (
         <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} settings={storeSettings} cart={cart} ready={ready} />
@@ -312,7 +325,7 @@ export default function StorefrontApp({
       ) : path.startsWith('/order-confirmation/') ? (
         <ConfirmationView token={path.split('/')[2]} settings={storeSettings} />
       ) : path === '/track-order' ? (
-        <TrackOrder />
+        <OrderTracking catalog={catalog} />
       ) : path === '/account' ? (
         <AccountView />
       ) : path === '/admin/login' ? (
@@ -326,6 +339,8 @@ export default function StorefrontApp({
           onDeleteReview={deleteReview}
           collections={collectionsList}
           onCollectionsChange={setCollectionsList}
+          homeCollectionCards={homeCollectionCards}
+          onHomeCollectionCardsChange={setHomeCollectionCards}
         />
       ) : (
         <InfoPage path={path} settings={storeSettings} />
@@ -886,7 +901,7 @@ function CommunityReviews({
             fontWeight: 600,
           }}
         >
-          <span>COMMUNITY ARCHIVE // VERIFIED</span>
+          <span>{reviews.some((review) => seedReviews.some((seed) => seed.id === review.id && seed.quote === review.quote)) ? 'Community preview · includes sample reviews' : 'The ZYRA community'}</span>
           <span
             className="index-pill"
             style={{
@@ -897,7 +912,7 @@ function CommunityReviews({
               fontWeight: 500,
             }}
           >
-            INDEX 24/25
+            Style & fit
           </span>
         </div>
         <div
@@ -921,10 +936,10 @@ function CommunityReviews({
               margin: 0,
             }}
           >
-            Worn Hard.
+            How you
             <br />
             <span className="highlight-sub" style={{ color: '#8C8980', fontWeight: 500 }}>
-              Rated Honestly.
+              wear ZYRA.
             </span>
           </h2>
           {isAdmin && (
@@ -953,7 +968,7 @@ function CommunityReviews({
         >
           <div className="score-group" style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
             <span className="score-num" style={{ fontSize: '38px', fontWeight: 800, letterSpacing: '-0.04em', color: '#111', lineHeight: 1 }}>
-              4.9
+              {reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : '—'}
             </span>
             <div className="score-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <div className="stars-row" style={{ color: '#111', fontSize: '13px', letterSpacing: '2px' }}>
@@ -970,7 +985,7 @@ function CommunityReviews({
                   textTransform: 'uppercase',
                 }}
               >
-                {reviews.length} VERIFIED WEARS
+                {reviews.length} reviews
               </span>
             </div>
           </div>
@@ -1001,7 +1016,7 @@ function CommunityReviews({
                 boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
               }}
             />
-            <span>98% FIT ACCURACY</span>
+            <span>Fit notes & reviews</span>
           </div>
         </div>
       </header>
@@ -1108,7 +1123,7 @@ function CommunityReviews({
                         <span className="author-name" style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>
                           {rev.author}
                         </span>
-                        {rev.verified && (
+                        {rev.verified && !seedReviews.some((seed) => seed.id === rev.id && seed.quote === rev.quote) && (
                           <span
                             className="verified-badge"
                             style={{
@@ -1297,7 +1312,7 @@ function CommunityReviews({
             cursor: 'pointer',
           }}
         >
-          DROP YOUR FIT CHECK
+          Share your experience
         </button>
 
         {filteredReviews.length > 3 && (
@@ -1321,7 +1336,7 @@ function CommunityReviews({
               cursor: 'pointer',
             }}
           >
-            {showAll ? 'SHOW LESS REPORTS' : `LOAD MORE REPORTS (${filteredReviews.length - 3})`}
+            {showAll ? 'Show fewer reviews' : `Read more reviews (${filteredReviews.length - 3})`}
           </button>
         )}
 
@@ -1339,7 +1354,7 @@ function CommunityReviews({
           }}
         >
           <span className="small-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8C8980' }} />
-          <p style={{ margin: 0 }}>ALL VERIFIED FIT CHECKS POST-PURCHASE VERIFIED</p>
+          <p style={{ margin: 0 }}>Read about the fit, feel and everyday wear.</p>
         </div>
       </footer>
 
@@ -1348,7 +1363,7 @@ function CommunityReviews({
         <div className="overlay modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setWriteModalOpen(false)}>
           <aside className="modal review-form-modal">
             <div className="panel-head">
-              <b>DROP YOUR FIT CHECK</b>
+              <b>Share your experience</b>
               <button className="icon-button" onClick={() => setWriteModalOpen(false)}>
                 <X />
               </button>
@@ -1458,13 +1473,13 @@ function CommunityReviews({
               <CheckCircle2 />
             </div>
             <h3>CONGRATULATIONS!</h3>
-            <h4>YOUR FIT CHECK HAS BEEN SUBMITTED</h4>
+            <h4>Thank you for sharing your experience</h4>
             <p>
               Thank you for sharing your fit feedback! Your submission has been received and is queued for post-purchase community verification.
             </p>
             <span className="congrats-badge">VERIFICATION INDEX #2026-CHECK</span>
             <button className="dark-button full-width" onClick={() => setCongratsModalOpen(false)}>
-              Back to Community Archive
+              Back to reviews
             </button>
           </aside>
         </div>
@@ -1605,6 +1620,7 @@ function Home({
   onDeleteReview,
   isAdmin = false,
   collections = categories,
+  homeCollectionCards = defaultHomeCollectionCards,
 }: {
   catalog: Product[];
   sections: ContentSection[];
@@ -1614,12 +1630,9 @@ function Home({
   onDeleteReview: (id: string) => void;
   isAdmin?: boolean;
   collections?: Category[];
+  homeCollectionCards?: HomeCollectionCard[];
 }) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
-  const animeCollection = collections.find((collection) => collection.slug === 'outerwear');
-  const streetwearCollection = collections.find((collection) => collection.slug === 'hoodies');
-  const animeTitle = animeCollection?.name && animeCollection.name !== 'Outerwear' ? animeCollection.name : 'Anime Collection';
-  const streetwearTitle = streetwearCollection?.name && streetwearCollection.name !== 'Hoodies' ? streetwearCollection.name : 'Street Wear';
   return (
     <main className="home-page">
       {enabled('campaign-hero') && (
@@ -1630,69 +1643,63 @@ function Home({
         />
         <div className="hero-shade" />
         <div className="hero-copy">
-          <p>{settings.heroEyebrow || defaultStoreSettings.heroEyebrow}</p>
+          <p>ZYRA · Trend-led streetwear</p>
           <h1>{(settings.heroHeading || defaultStoreSettings.heroHeading).split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</h1>
           <a className="light-button" href={settings.heroCtaHref || defaultStoreSettings.heroCtaHref}>
             {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <span>↗</span>
           </a>
         </div>
-        <p className="hero-caption">Karachi / 24°51′N 67°00′E</p>
+        <p className="hero-caption">The looks you want. The quality you feel.</p>
       </section>
       )}
       <div className="shopping-assurances" aria-label="Shopping at ZYRA">
-        <span><CreditCard aria-hidden="true" /> Cash on delivery</span>
-        <span><Truck aria-hidden="true" /> Free shipping {settings.freeShippingThreshold > 0 ? `over ${money(settings.freeShippingThreshold)}` : 'on all orders'}</span>
-        <a href="/track-order"><PackageCheck aria-hidden="true" /> Track your order <ChevronRight aria-hidden="true" /></a>
+        <div><i className="assurance-icon"><CreditCard aria-hidden="true" /></i><span><strong>Cash on delivery</strong><small>Pay when it arrives</small></span></div>
+        <div><i className="assurance-icon"><PackageOpen aria-hidden="true" /></i><span><strong>Allowed to open</strong><small>Check your parcel</small></span></div>
+        <a href="/track-order"><i className="assurance-icon"><PackageCheck aria-hidden="true" /></i><span><strong>Track your order</strong><small>Check order status <ChevronRight aria-hidden="true" /></small></span></a>
       </div>
-      {enabled('best-sellers') && <Rail title="In rotation" label="The ZYRA edit" description="Find your next everyday favourite. Explore the details, choose your fit, make it yours." list={catalog} />}
+      {enabled('best-sellers') && <Rail title="Find your next favourite" label="Shop ZYRA" description="The styles you’re looking for, with quality fabrics that feel as good as they look." list={catalog} />}
       {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
         <div className="manifesto-minimal">
           <div>
             <p className="eyebrow">ZYRA / EST. 2023</p>
             <h2>All the trends.<br />One destination.</h2>
-            <p className="manifesto-copy">Whatever&apos;s trending, you&apos;ll find it at ZYRA.</p>
+            <p className="manifesto-copy">The trends you love, with fabric quality you can feel. From graphic tees to everyday essentials, find your next look at ZYRA.</p>
         </div>
         <div className="manifesto-minimal-badges" aria-label="Store assurances">
-          <span><i className="manifesto-icon-wrap"><ShieldCheck /></i> Secure checkout</span>
-          <span><i className="manifesto-icon-wrap"><PackageCheck /></i> 14-day exchange</span>
+          <span><i className="manifesto-icon-wrap"><CheckCircle2 aria-hidden="true" /></i> Quality fabrics</span>
+          <span><i className="manifesto-icon-wrap"><PackageCheck /></i> 7-day exchange</span>
         </div>
       </div>
       </section>
       )}
       {enabled('core-forms') && (
       <Rail
-        title="Everyday statements"
-        label="Wear it your way"
-        description="Graphic pieces and easy layers. A fresh perspective on your daily wardrobe."
+        title="Make it your own"
+        label="Graphics & everyday wear"
+        description="Go bold with a graphic tee or keep it simple. Wear what feels like you."
         list={catalog.slice(4)}
       />
       )}
       <section className="editorial-grid">
-        <a href={`/collections/${animeCollection?.slug || 'outerwear'}`}>
-          <img
-            src="/anime-collection.jpeg"
-            alt="Model wearing a red anime graphic T-shirt"
-          />
-          <div>
-            <p className="eyebrow">Collection / 001</p>
-            <h2>{animeTitle}</h2>
-            <span>Explore collection ↗</span>
-          </div>
-        </a>
-        <a href={`/collections/${streetwearCollection?.slug || 'hoodies'}`}>
-          <img src="/street-wear.jpeg" alt="Model wearing an oversized blue graphic T-shirt" />
-          <div>
-            <p className="eyebrow">Collection / 002</p>
-            <h2>{streetwearTitle}</h2>
-            <span>Explore collection ↗</span>
-          </div>
-        </a>
+        {homeCollectionCards
+          .filter((card) => card.enabled)
+          .sort((left, right) => left.sortOrder - right.sortOrder)
+          .map((card) => (
+            <a href={`/collections/${card.collectionSlug}`} key={card.key}>
+              <img src={card.image} alt={`${card.title} collection`} />
+              <div>
+                <p className="eyebrow">{card.eyebrow}</p>
+                <h2>{card.title}</h2>
+                <span>Explore collection ↗</span>
+              </div>
+            </a>
+          ))}
       </section>
       <Rail
-        title="Lower division"
-        label="Movement pieces"
-        description="Start from the ground up. Find the pair that brings your whole look together."
+        title="Complete your look"
+        label="Bottoms"
+        description="Find the right pair to go with your favourite tee."
         list={catalog.filter(
           (p) => p.category === 'Bottoms' || p.category === 'Essentials',
         )}
@@ -1703,31 +1710,37 @@ function Home({
           alt="Independent clothing studio interior"
         />
         <div>
-          <p className="eyebrow">Essentials / Series 02</p>
+          <p className="eyebrow">Everyday essentials</p>
           <h2>
-            Nothing extra.
+            Good style.
             <br />
-            Everything considered.
+            Great fabric.
           </h2>
           <a className="light-button" href="/collections/essentials">
             Shop essentials <span>↗</span>
           </a>
         </div>
       </section>
-      {enabled('collection-grid') && <section className="section-shell">
+      {enabled('collection-grid') && <section className="section-shell collection-discovery">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Find your form</p>
+            <p className="eyebrow">Your style starts here</p>
             <h2>Collections</h2>
           </div>
+          <p className="collection-intro">From graphic tees to easy essentials.<br />Find your next look, all in one place.</p>
         </div>
         <div className="collection-grid">
-          {collections.map((c) => (
+          {collections.map((c, index) => (
             <a href={`/collections/${c.slug}`} key={c.slug}>
-              <img src={c.image} alt="" />
-              <span>
-                {c.name} <ArrowRight />
-              </span>
+              <div className="collection-visual">
+                <img src={c.image} alt="" loading="lazy" />
+                <div className="collection-index" aria-hidden="true">ZYRA / {String(index + 1).padStart(2, '0')}</div>
+                <div className="collection-explore" aria-hidden="true">Explore collection <ArrowRight /></div>
+              </div>
+              <div className="collection-caption">
+                <h3>{c.name}</h3>
+                <div className="collection-arrow" aria-hidden="true"><ArrowRight /></div>
+              </div>
             </a>
           ))}
         </div>
@@ -1744,21 +1757,21 @@ function Home({
       <section className="trust-section" aria-label="Brand guarantees and trust signals">
         <header className="trust-heading">
           <p className="eyebrow">Why shop ZYRA</p>
-          <h2>Confidence, built in.</h2>
-          <span className="trust-live"><i /> Store protection active</span>
+          <h2>Why ZYRA</h2>
+          <span className="trust-live">Quality. Comfort. Care.</span>
         </header>
         <div className="trust-strip">
         <div className="trust-card">
           <div className="trust-card-main">
             <div className="trust-icon-box">
-              <ShieldCheck className="trust-icon" />
+              <Shirt className="trust-icon" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="trust-title">Secure Checkout</h3>
-              <p className="trust-desc">Protected checkout and private order lookup</p>
+              <h3 className="trust-title">Quality fabrics</h3>
+              <p className="trust-desc">Made to feel good.</p>
             </div>
           </div>
-          <span className="trust-pill trust-pill-ssl">SSL Active</span>
+          <span className="trust-pill trust-pill-ssl">Fabric first</span>
         </div>
 
         <div className="trust-card">
@@ -1767,11 +1780,11 @@ function Home({
               <Truck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Fast Dispatch</h3>
-              <p className="trust-desc">Dispatched within 24h · 2–4 working days</p>
+              <h3 className="trust-title">Track your order</h3>
+              <p className="trust-desc">Updates online.</p>
             </div>
           </div>
-          <span className="trust-pill">Air Express</span>
+          <span className="trust-pill">Order updates</span>
         </div>
 
         <div className="trust-card">
@@ -1780,11 +1793,11 @@ function Home({
               <CreditCard className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Flexible Payment</h3>
-              <p className="trust-desc">Bank transfer or Cash on Delivery</p>
+              <h3 className="trust-title">Pay your way</h3>
+              <p className="trust-desc">COD or bank transfer.</p>
             </div>
           </div>
-          <span className="trust-pill trust-pill-black">0% Fee</span>
+          <span className="trust-pill trust-pill-black">Your choice</span>
         </div>
 
         <div className="trust-card">
@@ -1793,11 +1806,11 @@ function Home({
               <PackageCheck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Easy Exchange</h3>
-              <p className="trust-desc">14-day hassle-free doorstep exchange</p>
+              <h3 className="trust-title">7-day exchange</h3>
+              <p className="trust-desc">Unworn items only.</p>
             </div>
           </div>
-          <span className="trust-pill">Doorstep</span>
+          <span className="trust-pill">See exchange policy</span>
         </div>
         </div>
       </section>
@@ -1998,10 +2011,12 @@ function CheckoutView({
   const requestKey = useRef<{ payload: string; key: string } | null>(null);
   const [savedCardOrder, setSavedCardOrder] = useState('');
   useEffect(() => { fetch('/api/payments/safepay').then(r => r.json()).then(setCard).catch(() => {}); }, []);
+  useEffect(() => { try { const pending = sessionStorage.getItem('zyra-pending-card-order'); if (pending && /^[a-zA-Z0-9_-]{20,100}$/.test(pending)) setSavedCardOrder(pending); } catch {} }, []);
   const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.flatShipping,
     total = subtotal + shipping;
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (busy) return;
     if (!cart.length) {
       setError('Your bag is empty.');
       return;
@@ -2012,7 +2027,10 @@ function CheckoutView({
     try {
       if (savedCardOrder) { location.href = `/payment-return?order=${encodeURIComponent(savedCardOrder)}`; return; }
       const payload = JSON.stringify({ items: cart, email: data.get('email'), phone: data.get('phone'), firstName: data.get('firstName'), lastName: data.get('lastName'), address: data.get('address'), city: data.get('city'), province: data.get('province'), postal: data.get('postal'), note: data.get('note'), payment });
-      if (requestKey.current?.payload !== payload) requestKey.current = { payload, key: crypto.randomUUID() };
+      if (requestKey.current?.payload !== payload) {
+        const attempt = await checkoutAttempt(sessionStorage, payload);
+        requestKey.current = { payload, key: attempt.key };
+      }
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -2038,13 +2056,14 @@ function CheckoutView({
       const order = result as Order;
       if (payment === 'safepay') {
         setSavedCardOrder(order.token);
+        sessionStorage.setItem('zyra-pending-card-order', order.token);
         const session = await fetch('/api/payments/safepay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: order.token }) });
         const paymentResult = await session.json();
         if (!session.ok) throw new Error(paymentResult.error || 'Payment could not be opened.');
         location.assign(paymentResult.url);
         return;
       }
-      localStorage.setItem('zyra-last-order', JSON.stringify(order));
+      sessionStorage.removeItem('zyra-checkout-attempt');
       onComplete();
       location.href = `/order-confirmation/${order.token}`;
     } catch (err) {
@@ -2053,6 +2072,7 @@ function CheckoutView({
       setBusy(false);
     }
   };
+  if (savedCardOrder) return <main className="checkout-page"><section className="checkout-recovery"><p className="eyebrow">ZYRA / Saved order</p><h1>Finish your payment.</h1><p>Your order has been saved. Check its payment status or reopen the same Safepay session to continue.</p>{error && <p role="alert">{error}</p>}<a className="dark-button" href={`/payment-return?order=${encodeURIComponent(savedCardOrder)}`}>Continue with saved order <ArrowRight /></a><a className="inline-link" href="/pages/contact">Need help? Contact us</a></section></main>;
   if (!cart.length)
     return (
       <main className="checkout-page">
@@ -2151,7 +2171,8 @@ function CheckoutView({
             </span>
             <strong>{shipping ? money(shipping) : 'FREE'}</strong>
           </label>
-          <p className="eyebrow form-section">04 / Payment</p>
+          <p className="eyebrow form-section">04 / Billing & payment</p>
+          {!card.available && <div className="choice payment-unavailable" aria-label="Advance card payment unavailable"><CreditCard aria-hidden="true" /><span><b>Advance card payment · Safepay</b><small>Currently unavailable. You can choose cash on delivery or a manual bank transfer below.</small></span></div>}
           {card.available && <label className={`choice ${payment === 'safepay' ? 'selected' : ''}`}><input type="radio" name="payment" checked={payment === 'safepay'} onChange={() => setPayment('safepay')} /><span><b>Debit / credit card · Safepay{card.environment === 'sandbox' ? ' (test mode)' : ''}</b><small>Pay {money(total)} securely on Safepay. Your card details stay with the payment provider.</small></span><CreditCard aria-hidden="true" /></label>}
           <label className={`choice ${payment === 'cod' ? 'selected' : ''}`}>
             <input
@@ -2217,7 +2238,7 @@ function OrderSummary({
         return (
           <div className="checkout-line" key={`${item.slug}${i}`}>
             <div>
-              <img src={p.image} alt="" />
+              <img src={p.image} alt={p.name} />
               <span>{item.qty}</span>
             </div>
             <p>
@@ -2326,68 +2347,6 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
   );
 }
 
-function TrackOrder() {
-  const [result, setResult] = useState<Order | null | false>(null),
-    [busy, setBusy] = useState(false);
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setBusy(true);
-    const form = new FormData(e.currentTarget);
-    const query = new URLSearchParams({
-      number: String(form.get('number') || ''),
-      contact: String(form.get('contact') || ''),
-    });
-    try {
-      const response = await fetch(`/api/orders?${query}`);
-      setResult(response.ok ? await response.json() : false);
-    } catch {
-      setResult(false);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <main className="simple-page">
-      <div>
-        <p className="eyebrow">Shipment lookup</p>
-        <h1>Track your order</h1>
-        <p>
-          Enter the order number and the matching email or phone used at
-          checkout.
-        </p>
-        <form onSubmit={submit} className="stack-form">
-          <label>
-            Order number
-            <input required name="number" placeholder="ZY-260903-XXXX" />
-          </label>
-          <label>
-            Email or phone
-            <input required name="contact" />
-          </label>
-          <button className="dark-button" disabled={busy}>
-            {busy ? 'Checking…' : 'Track order'} <ArrowRight />
-          </button>
-        </form>
-        {result === false && (
-          <p className="form-error">No matching demo order was found.</p>
-        )}
-        {result && (
-          <div className="tracking-result">
-            <b>{result.number}</b>
-            <span>{result.status}</span>
-            <div className="timeline">
-              <i className="done" />
-              <i />
-              <i />
-              <i />
-            </div>
-            <small>Confirmed → Processing → Shipped → Delivered</small>
-          </div>
-        )}
-      </div>
-    </main>
-  );
-}
 
 function AccountView() {
   const [mode, setMode] = useState<'login' | 'register'>('login'),
@@ -2517,6 +2476,8 @@ function AdminView({
   onDeleteReview,
   collections,
   onCollectionsChange,
+  homeCollectionCards,
+  onHomeCollectionCardsChange,
 }: {
   catalog: Product[];
   onCatalogChange: (products: Product[]) => void;
@@ -2525,6 +2486,8 @@ function AdminView({
   onDeleteReview: (id: string) => void;
   collections: Category[];
   onCollectionsChange: (collections: Category[]) => void;
+  homeCollectionCards: HomeCollectionCard[];
+  onHomeCollectionCardsChange: (cards: HomeCollectionCard[]) => void;
 }) {
   const [allowed, setAllowed] = useState<boolean | null>(null),
     [tab, setTab] = useState('dashboard'),
@@ -2540,20 +2503,21 @@ function AdminView({
 
   const loadAdminData = async () => {
     try {
-      const [productResponse, publicResponse, orderResponse, settingsResponse, contentResponse, collectionResponse] = await Promise.all([
+      const [productResponse, publicResponse, orderResponse, settingsResponse, contentResponse, collectionResponse, homeCardResponse] = await Promise.all([
         fetch('/api/admin/products'),
         fetch('/api/products'),
         fetch('/api/admin/orders'),
         fetch('/api/admin/settings'),
         fetch('/api/admin/content'),
         fetch('/api/admin/collections'),
+        fetch('/api/admin/home-collection-cards'),
       ]);
       if (productResponse.status === 401 || orderResponse.status === 401) {
         sessionStorage.removeItem('zyra-admin-demo');
         setAllowed(false);
         return;
       }
-      if (!productResponse.ok || !publicResponse.ok || !orderResponse.ok || !settingsResponse.ok || !contentResponse.ok || !collectionResponse.ok) {
+      if (!productResponse.ok || !publicResponse.ok || !orderResponse.ok || !settingsResponse.ok || !contentResponse.ok || !collectionResponse.ok || !homeCardResponse.ok) {
         throw new Error('Admin data could not be loaded.');
       }
       setAdminCatalog(await productResponse.json());
@@ -2562,6 +2526,7 @@ function AdminView({
       setSettings(await settingsResponse.json());
       setSections(await contentResponse.json());
       onCollectionsChange(await collectionResponse.json());
+      onHomeCollectionCardsChange(await homeCardResponse.json());
     } catch (loadError) {
       setAdminError(loadError instanceof Error ? loadError.message : 'Admin data could not be loaded.');
     }
@@ -2646,7 +2611,7 @@ function AdminView({
           ZYRA<span>®</span>
         </a>
         <p className="eyebrow">Commerce OS</p>
-        {['dashboard', 'visitors', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
+        {['dashboard', 'payments', 'visitors', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
           <button
             key={x}
             className={tab === x ? 'active' : ''}
@@ -2676,6 +2641,7 @@ function AdminView({
           </a>
         </header>
         {tab === 'visitors' && <VisitorDashboard />}
+        {tab === 'payments' && <PaymentSetup />}
         {tab === 'dashboard' && (
           <>
             <div className="stat-grid">
@@ -2705,6 +2671,15 @@ function AdminView({
         )}
         {tab === 'products' && (
           <section className="admin-products-section">
+            <HomeCollectionCardsEditor
+              cards={homeCollectionCards}
+              collections={collections}
+              onSaved={(nextCards, message) => {
+                onHomeCollectionCardsChange(nextCards);
+                setSaved(message);
+              }}
+              onError={setAdminError}
+            />
             <CollectionNameEditor
               collections={collections}
               onSaved={async (nextCollections, message) => {
@@ -2940,6 +2915,102 @@ function AdminView({
       </section>
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrder} catalog={adminCatalog} />}
     </main>
+  );
+}
+
+function HomeCollectionCardsEditor({
+  cards,
+  collections,
+  onSaved,
+  onError,
+}: {
+  cards: HomeCollectionCard[];
+  collections: Category[];
+  onSaved: (cards: HomeCollectionCard[], message: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [drafts, setDrafts] = useState<HomeCollectionCard[]>(cards);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  useEffect(() => setDrafts(cards), [cards]);
+
+  const updateDraft = (key: string, patch: Partial<HomeCollectionCard>) => {
+    setDrafts((current) => current.map((card) => card.key === key ? { ...card, ...patch } : card));
+  };
+
+  const save = async (card: HomeCollectionCard) => {
+    if (!card.title.trim() || !card.eyebrow.trim() || !card.image || !card.collectionSlug) {
+      onError('Card name, label, image and destination collection are required.');
+      return;
+    }
+    setSavingKey(card.key);
+    onError('');
+    try {
+      const response = await fetch('/api/admin/home-collection-cards', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(card),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Homepage collection card could not be saved.');
+      onSaved(result, `${card.title.trim()} homepage card updated.`);
+    } catch (saveError) {
+      onError(saveError instanceof Error ? saveError.message : 'Homepage collection card could not be saved.');
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  return (
+    <div className="admin-collection-manager admin-home-collection-manager">
+      <div className="admin-section-head">
+        <div>
+          <p className="eyebrow">Homepage / Featured cards</p>
+          <h2>Homepage collection cards</h2>
+          <p>These editorial cards are separate from product categories. Change their display name, photo and where they open.</p>
+        </div>
+      </div>
+      <div className="admin-home-card-list">
+        {[...drafts].sort((left, right) => left.sortOrder - right.sortOrder).map((card) => (
+          <form className="admin-home-card" key={card.key} onSubmit={(event) => { event.preventDefault(); void save(card); }}>
+            <div className="admin-home-card-preview">
+              <img src={card.image} alt="" />
+              <span><small>{card.eyebrow}</small><b>{card.title}</b></span>
+            </div>
+            <div className="admin-home-card-fields">
+              <label>
+                Display name
+                <input maxLength={80} value={card.title} onChange={(event) => updateDraft(card.key, { title: event.target.value })} />
+              </label>
+              <label>
+                Small label
+                <input maxLength={80} value={card.eyebrow} onChange={(event) => updateDraft(card.key, { eyebrow: event.target.value })} />
+              </label>
+              <label>
+                Opens collection
+                <select value={card.collectionSlug} onChange={(event) => updateDraft(card.key, { collectionSlug: event.target.value })}>
+                  {collections.map((collection) => <option value={collection.slug} key={collection.slug}>{collection.name}</option>)}
+                </select>
+              </label>
+              <label className="admin-home-card-toggle">
+                <input type="checkbox" checked={card.enabled} onChange={(event) => updateDraft(card.key, { enabled: event.target.checked })} />
+                Show on homepage
+              </label>
+            </div>
+            <ImageUploader
+              label="Card image"
+              value={card.image}
+              onChange={(image) => updateDraft(card.key, { image })}
+              onError={onError}
+              scope="collection"
+            />
+            <button className="dark-button" disabled={savingKey === card.key}>
+              {savingKey === card.key ? 'Saving…' : 'Save homepage card'}
+            </button>
+          </form>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -3221,65 +3292,11 @@ function OrderDetail({ order, onClose, onStatus, catalog }: { order: Order; onCl
 }
 
 function InfoPage({ path, settings }: { path: string; settings: StoreSettings }) {
-  if (path === '/pages/privacy') return <main className="simple-page"><div className="pdp-service-page">
-    <p className="eyebrow">ZYRA / Customer care</p><h1>Privacy policy</h1>
-    <h2>Order information</h2><p>When you place an order, we use the contact, delivery and product details you provide to process your order, arrange delivery and help with support requests.</p>
-    <h2>Website activity</h2><p>Where activity analytics is enabled, we automatically record pages and products viewed, additions to your bag, checkout page visits, timestamps and a broad device category. This helps us understand how the store is used. Analytics does not identify you by name or record form entries, passwords, payment details, raw IP addresses or search terms.</p>
-    <h2>Session cookie and retention</h2><p>A random session identifier groups activity from the same browser. Its cookie expires after 30 minutes of inactivity. Activity is kept for up to 30 days and expired records are removed the next time activity is recorded or the dashboard is opened. Only authorised administrators can access the dashboard. These records are separate from order records.</p>
-    <ActivityPrivacySetting />
-    <h2>Questions about your data</h2><p>Contact <a className="inline-link" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a> for privacy questions or requests relating to your order information.</p>
-  </div></main>;
-  const name =
-    path.split('/').filter(Boolean).pop()?.replaceAll('-', ' ') || 'Page';
-  if (['contact', 'shipping', 'returns'].includes(name)) {
-    return <main className="simple-page"><div className="pdp-service-page">
-      <p className="eyebrow">ZYRA / Customer care</p>
-      <h1>{name === 'contact' ? 'Here to help' : name === 'shipping' ? 'Delivery information' : 'Size exchanges'}</h1>
-      {name === 'contact' ? <>
-        <p>Need help choosing a size, checking a product detail or following up on an order? Contact the ZYRA team.</p>
-        <h2>Before you order</h2><p>Share the product name and the size you’re considering. Ask for garment measurements, fabric details or care instructions if they’re not listed.</p>
-        <h2>Already ordered?</h2><p>Include your order number so we can help with delivery or an exchange.</p>
-        <a className="inline-link" href="/track-order">Track your order</a>
-      </> : name === 'shipping' ? <>
-        <p>{settings.flatShipping === 0 ? 'Standard delivery is free.' : `Standard delivery is ${money(settings.flatShipping)}.`} {settings.freeShippingThreshold > 0 ? `Orders of ${money(settings.freeShippingThreshold)} or more qualify for free shipping.` : 'All orders qualify for free shipping.'}</p>
-        <h2>Your delivery total</h2><p>The final delivery charge and total are shown at checkout before you place your order. Cash on delivery and manual bank transfer are available.</p>
-        <h2>Order updates</h2><p>Use your order number and checkout email or phone to check your order status. Contact us if you need help with your address or delivery.</p>
-        <a className="inline-link" href="/track-order">Check order status</a>
-      </> : <>
-        <p>You can request a size exchange within 14 days for an unworn item, subject to size availability.</p>
-        <h2>How to request an exchange</h2><p>Contact us with your order number, product name and the size you need. Keep the item unworn and retain its tags and packaging.</p>
-        <h2>Before sending anything back</h2><p>Our team will confirm eligibility, availability, return instructions and any delivery charges. Please contact us before returning your item.</p>
-      </>}
-      <p><a className="inline-link" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a></p>
-      <a className="dark-button" href="/collections">Continue shopping <ArrowRight /></a>
-    </div></main>;
-  }
-  return (
-    <main className="simple-page">
-      <div>
-        <p className="eyebrow">ZYRA / Information</p>
-        <h1>{name}</h1>
-        <p>
-          For this demonstration, the {name} page uses original sample copy.
-          Contact{' '}
-          <a className="inline-link" href="mailto:hello@zyra.store">
-            hello@zyra.store
-          </a>{' '}
-          for support, delivery questions, returns, privacy, or wholesale
-          enquiries.
-        </p>
-        <a className="dark-button" href="/collections">
-          Return to shop
-        </a>
-      </div>
-    </main>
-  );
+  return <CustomerHelp path={path} settings={settings} />;
 }
 
 function Footer({ settings, collections = categories }: { settings?: StoreSettings; collections?: Category[] }) {
   const [activeAccordion, setActiveAccordion] = useState<string | null>(null);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const [newsletterState, setNewsletterState] = useState<'idle' | 'success'>('idle');
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
@@ -3295,18 +3312,6 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
     setActiveAccordion((prev) => (prev === key ? null : key));
   };
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newsletterEmail) return;
-    setNewsletterState('success');
-    setTimeout(() => {
-      setNewsletterEmail('');
-      setTimeout(() => {
-        setNewsletterState('idle');
-      }, 2500);
-    }, 1000);
-  };
-
   const instagram = settings?.instagramUrl || 'https://instagram.com';
   const facebook = settings?.facebookUrl || 'https://facebook.com';
   const youtube = settings?.youtubeUrl || 'https://youtube.com';
@@ -3315,23 +3320,22 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
 
   const shopLinks: Array<{ label: string; href: string; highlight?: boolean }> = [
     ...collections.map((collection) => ({ label: collection.name, href: `/collections/${collection.slug}` })),
-    { label: 'View complete archive', href: '/collections', highlight: true },
+    { label: 'Shop all', href: '/collections', highlight: true },
   ];
 
   const infoLinks = [
-    { label: 'Live Order Dispatch Tracking', href: '/track-order' },
-    { label: 'Shipping & Customs Guidelines', href: '/pages/shipping' },
-    { label: 'Hassle-Free Return & Exchange', href: '/pages/returns' },
-    { label: 'Streetwear Sizing & Fit Guide', href: '/pages/faq' },
-    { label: 'Garment Care & Longevity', href: '/pages/contact' },
-    { label: 'WhatsApp & Concierge Studio', href: '/pages/contact' },
+    { label: 'Track your order', href: '/track-order' },
+    { label: 'Delivery information', href: '/pages/shipping' },
+    { label: 'Returns & size exchanges', href: '/pages/returns' },
+    { label: 'Sizing & shopping FAQs', href: '/pages/faq' },
+    { label: 'Fabric & care guide', href: '/pages/fabric-care' },
+    { label: 'Contact ZYRA', href: '/pages/contact' },
   ];
 
   const legalLinks = [
-    { label: 'Authenticity Verification', href: '/pages/privacy' },
-    { label: 'Terms of Dispatch & Sale', href: '/pages/terms' },
+    { label: 'Terms of sale', href: '/pages/terms' },
     { label: 'Privacy Policy', href: '/pages/privacy' },
-    { label: 'IP & Trademark Protection', href: '/pages/terms' },
+    { label: 'Website terms', href: '/pages/website-terms' },
   ];
 
   return (
@@ -3378,7 +3382,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
             }}
           >
             <span style={{ fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#d4d4d4', fontWeight: 500 }}>
-              Collection Archive
+              ZYRA · Streetwear
             </span>
           </div>
           <h2
@@ -3392,9 +3396,9 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
               marginBottom: '16px',
             }}
           >
-            MAKE FEWER PIECES.
+            ALL THE TRENDS.
             <br />
-            <span style={{ color: '#a3a3a3' }}>MAKE THEM MATTER.</span>
+            <span style={{ color: '#a3a3a3' }}>ONE DESTINATION.</span>
           </h2>
           <p
             style={{
@@ -3406,146 +3410,15 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
               margin: '0 auto',
             }}
           >
-            ZYRA is an independent streetwear atelier rooted in Karachi. Built on heavyweight silhouettes, utilitarian cuts, and uncompromising craft.
+            Trend-led streetwear with high-quality fabrics. From the graphic tee you’ve been looking for to the essentials you wear on repeat—find it at ZYRA.
           </p>
         </section>
 
-        {/* Modern Gen Z Newsletter / Secret Drop Access */}
-        <section
-          style={{
-            maxWidth: isDesktop ? '600px' : '100%',
-            width: '100%',
-            margin: '0 auto 48px auto',
-            padding: '20px',
-            borderRadius: '16px',
-            backgroundColor: 'rgba(23, 23, 23, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxSizing: 'border-box',
-          }}
-          data-purpose="newsletter-dispatch"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 0 8px #ffffff',
-                }}
-              />
-              <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#ffffff' }}>
-                Private Drops & Archive Access
-              </span>
-            </div>
-            <span
-              style={{
-                fontSize: '10px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                padding: '2px 10px',
-                borderRadius: '9999px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#d4d4d4',
-                fontWeight: 500,
-              }}
-            >
-              VIP Access
-            </span>
-          </div>
-          <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '0 0 16px 0' }}>
-            Never miss a stealth drop. Backroom restocks, secret sample sales & early vault keys.
-          </p>
-          <form onSubmit={handleNewsletterSubmit} style={{ position: 'relative', marginBottom: '8px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                padding: '6px',
-              }}
-            >
-              <input
-                required
-                type="text"
-                placeholder="ENTER EMAIL OR MOBILE"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  letterSpacing: '0.05em',
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  backgroundColor: newsletterState === 'success' ? '#34d399' : '#ffffff',
-                  color: '#000000',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  border: 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  flexShrink: 0,
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <span>{newsletterState === 'success' ? 'ADDED' : 'JOIN'}</span>
-                {newsletterState !== 'success' && <ArrowRight style={{ width: '14px', height: '14px' }} />}
-              </button>
-            </div>
-            {newsletterState === 'success' && (
-              <p
-                style={{
-                  fontSize: '10px',
-                  letterSpacing: '0.05em',
-                  color: '#34d399',
-                  marginTop: '8px',
-                  textAlign: 'center',
-                  fontWeight: 500,
-                }}
-              >
-                CONFIRMED: DISPATCH PROTOCOL ACTIVATED.
-              </p>
-            )}
-          </form>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              textAlign: 'center',
-              paddingTop: '8px',
-              fontSize: '10px',
-              color: '#a3a3a3',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: 500,
-            }}
-          >
-            <span>Zero Spam</span>
-            <span>•</span>
-            <span>Exclusive Access</span>
-            <span>•</span>
-            <span>Cancel Anytime</span>
-          </div>
+        <section className="zyra-stay-connected" data-purpose="newsletter-dispatch">
+          <p className="eyebrow">Keep up with ZYRA</p>
+          <h3>Your next favourite is on the way.</h3>
+          <p>See new arrivals, outfit ideas and what’s next on our Instagram.</p>
+          <a href={instagram} target="_blank" rel="noreferrer">Follow ZYRA <ArrowRight aria-hidden="true" /></a>
         </section>
 
         {/* Quick Links: Accordion on Mobile / Separate Columns on Desktop */}
@@ -3617,7 +3490,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
                     marginTop: 0,
                   }}
                 >
-                  Client Services
+                  Customer help
                 </h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {infoLinks.map((item) => (
@@ -3653,7 +3526,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
                     marginTop: 0,
                   }}
                 >
-                  Policies & Verification
+                  Policies
                 </h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {legalLinks.map((item) => (
@@ -3748,7 +3621,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
                   }}
                 >
                   <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#e5e5e5' }}>
-                    Client Services
+                    Customer help
                   </span>
                   <span style={{ fontSize: '16px', fontWeight: 300, color: '#a3a3a3', transition: 'transform 0.3s ease', transform: activeAccordion === 'info' ? 'rotate(45deg)' : 'none' }}>
                     +
@@ -3797,7 +3670,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
                   }}
                 >
                   <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#e5e5e5' }}>
-                    Policies & Verification
+                    Policies
                   </span>
                   <span style={{ fontSize: '16px', fontWeight: 300, color: '#a3a3a3', transition: 'transform 0.3s ease', transform: activeAccordion === 'legal' ? 'rotate(45deg)' : 'none' }}>
                     +
@@ -3959,47 +3832,12 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
           </div>
         </section>
 
-        {/* Payment & Security Badges */}
-        <section
-          style={{
-            marginBottom: '40px',
-            padding: '16px 12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: '12px',
-            textAlign: 'center',
-          }}
-          data-purpose="payment-guarantees"
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontSize: '10px',
-              color: '#d4d4d4',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
-              Cash on Delivery
-            </span>
-            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
-              Online Bank Transfer
-            </span>
-            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
-              Visa / Mastercard
-            </span>
-            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '4px', backgroundColor: 'rgba(0, 0, 0, 0.5)', fontWeight: 500 }}>
-              Apple Pay
-            </span>
-            <span style={{ padding: '4px 10px', border: '1px solid rgba(255, 255, 255, 0.25)', borderRadius: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#ffffff', fontWeight: 500 }}>
-              Encrypted Checkout
-            </span>
-          </div>
+        <section className="footer-service-icons" aria-label="Payment and customer support" data-purpose="payment-guarantees">
+          <div><i><CreditCard aria-hidden="true" /></i><span>Cash on delivery</span></div>
+          <div><i><Landmark aria-hidden="true" /></i><span>Bank transfer</span></div>
+          <a href="/track-order"><i><Truck aria-hidden="true" /></i><span>Track your order</span></a>
+          <a href="/pages/returns"><i><PackageCheck aria-hidden="true" /></i><span>7-day exchange</span></a>
+          <a href="/pages/contact"><i><CircleUserRound aria-hidden="true" /></i><span>Customer help</span></a>
         </section>
 
         {/* Back to Top Button */}
@@ -4043,12 +3881,12 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
           data-purpose="legal-bottom-bar"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
-            <span>© 2026 Zyra Archive Lab</span>
+            <span>© {new Date().getFullYear()} ZYRA</span>
             <span>•</span>
             <span>Karachi, PK</span>
           </div>
           <p style={{ fontSize: '9px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#737373', margin: 0, fontWeight: 400 }}>
-            All images & silhouettes protected under creative property rights
+            All rights reserved.
           </p>
         </section>
       </div>

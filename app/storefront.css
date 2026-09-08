@@ -2686,6 +2686,109 @@ button:focus-visible {
   background: var(--paper);
   border: 1px solid var(--line);
 }
+.admin-home-collection-manager {
+  padding: 24px;
+}
+.admin-home-collection-manager .admin-section-head {
+  align-items: flex-end;
+}
+.admin-home-collection-manager .eyebrow {
+  margin-bottom: 7px;
+}
+.admin-home-card-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+.admin-home-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.admin-home-card-preview {
+  height: 260px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: #222;
+  color: #fff;
+}
+.admin-home-card-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.72));
+}
+.admin-home-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.admin-home-card-preview > span {
+  position: absolute;
+  z-index: 1;
+  inset: auto 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-transform: uppercase;
+}
+.admin-home-card-preview small {
+  font: 9px var(--font-geist-mono);
+  letter-spacing: .1em;
+}
+.admin-home-card-preview b {
+  font-size: 26px;
+  line-height: .95;
+}
+.admin-home-card-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.admin-home-card-fields label,
+.admin-home-card .admin-image-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font: 9px var(--font-geist-mono);
+  text-transform: uppercase;
+}
+.admin-home-card-fields input,
+.admin-home-card-fields select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.admin-home-card-fields .admin-home-card-toggle {
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  min-height: 42px;
+  color: var(--ink);
+}
+.admin-home-card-toggle input {
+  width: 16px;
+  min-height: 16px;
+}
+.admin-home-card .admin-image-upload {
+  margin: 16px 0;
+}
+.admin-home-card .admin-image-preview {
+  min-height: 170px;
+}
+.admin-home-card .admin-image-preview img {
+  height: 190px;
+}
+.admin-home-card > .dark-button {
+  width: 100%;
+}
 .admin-collection-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3288,6 +3391,19 @@ button:focus-visible {
   }
   .admin-field-pair {
     grid-template-columns: 1fr;
+  }
+  .admin-home-collection-manager {
+    padding: 16px;
+  }
+  .admin-home-card-list,
+  .admin-home-card-fields {
+    grid-template-columns: 1fr;
+  }
+  .admin-home-card-preview {
+    height: 320px;
+  }
+  .admin-home-card-fields .admin-home-card-toggle {
+    align-self: auto;
   }
   .footer {
     grid-template-columns: 1fr 1fr;

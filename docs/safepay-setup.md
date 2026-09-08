@@ -13,10 +13,14 @@ Implemented locally using the official `@sfpy/node-core` 0.3.5 SDK. Card payment
 
 ## Payment behavior
 
-The option stays hidden until credentials, enable flag and payment table are present. Existing COD/bank options continue to work. Order creation is transactional with server prices and stock. Each order claims one tracker creation; a network timeout with an unknown provider outcome remains blocked for manual reconciliation instead of creating another potentially chargeable session. If a tracker is attached, retries reopen that tracker. Do not delete the claim to retry without checking Safepay first.
+Checkout now shows Billing & payment and an explicitly unavailable Safepay card until credentials, enable flag and payment table are present. Admin → payments lists configuration readiness without exposing secrets. Existing COD/bank options continue to work. Order creation is transactional with server prices and stock. Checkout retry keys and saved payment references survive reload without storing form entries. Each order claims one tracker creation; a network timeout with an unknown provider outcome remains blocked for manual reconciliation instead of creating another potentially chargeable session. If a tracker is attached, retries reopen that tracker. Do not delete the claim to retry without checking Safepay first.
 
 Signed successful callbacks must match the merchant, tracker, PKR amount and environment before a transaction marks payment paid and confirms the order. Repeated events are idempotent. Redirect parameters cannot mark orders paid. Admin fulfilment of unpaid Safepay orders is blocked by a database trigger. Late payment on a cancelled order is flagged PAID_REVIEW_REQUIRED, never automatically fulfilled. Pending orders reserve stock; admins can cancel abandoned orders to restore stock using the existing workflow. Refunds are manual in Safepay and must be reconciled separately; automatic refunds are not implemented. Subscribe only to the supported payment.succeeded event.
 
 No sandbox/live payment has been run because merchant credentials are not configured. Conversion is not guaranteed by checkout design.
+
+## Verification performed locally
+
+An isolated PostgreSQL runtime executes the actual payment migration and verifies server totals, stock, idempotent order creation, duplicate callbacks, incorrect amount/currency/environment rejection, unpaid fulfilment blocking and late-payment review. Browser tests verify mobile/desktop billing, saved-order recovery after reload, and the difference between an untrusted redirect and a confirmed server payment status. These do not replace a real Safepay sandbox payment or merchant activation.
 
 Sources: https://safepay-docs.netlify.app/build-your-integration/express-checkout/ and https://safepay-docs.netlify.app/developers/webhooks/verify-hmac-signatures/

@@ -19,6 +19,8 @@ export default function PaymentReturn() {
         if (order.paymentStatus === 'PAID') {
           setState('Payment received. Thank you!');
           try {
+            sessionStorage.removeItem('zyra-pending-card-order');
+            sessionStorage.removeItem('zyra-checkout-attempt');
             const key = `zyra-paid-cart-${value}`;
             if (!sessionStorage.getItem(key)) {
               const cart = JSON.parse(localStorage.getItem('zyra-cart') || '[]') as Array<{slug:string;size:string;color:string;qty:number}>;
@@ -29,10 +31,11 @@ export default function PaymentReturn() {
           } catch { /* Order remains paid even if browser storage is unavailable. */ }
           location.replace(`/order-confirmation/${value}`); return;
         }
-        if (order.paymentStatus === 'PAID_REVIEW_REQUIRED') { setState('Payment received. Please contact support to confirm fulfilment of this order.'); return; }
+        if (order.paymentStatus === 'PAID_REVIEW_REQUIRED') { setPending(false); setState('Payment received. Please contact support to confirm fulfilment of this order.'); return; }
+        if (order.status === 'CANCELLED') { setPending(false);setState('This order was cancelled. If you were charged, contact support before placing another order.'); try { sessionStorage.removeItem('zyra-pending-card-order'); sessionStorage.removeItem('zyra-checkout-attempt'); } catch {} return; }
         setState('Payment is not yet confirmed. If you were charged, please wait or contact us before paying again.');
         setPending(order.status === 'PENDING');
-      } catch { if (!stopped) setState('We could not check your payment yet. Please contact support before paying again.'); }
+      } catch { if (!stopped) { setPending(false); setState('We could not check your payment yet. Please contact support before paying again.'); } }
       attempts++;
     };
     void check(); const timer=setInterval(() => { if(attempts < 10) void check(); else clearInterval(timer); },5000);

@@ -1,0 +1,37 @@
+/* Homepage collection cards: explicit stylesheet entry for reliable HMR. */
+.collection-discovery .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.collection-intro { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
+.collection-discovery .collection-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 20px; }
+.collection-discovery .collection-grid > a { min-width: 0; border: 0; background: transparent; box-shadow: none; transform: none; }
+.collection-visual { position: relative; overflow: hidden; isolation: isolate; background: #e5e2da; aspect-ratio: 1; }
+.collection-discovery .collection-grid img { display: block; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; object-position: center; filter: none; transition: transform 650ms cubic-bezier(.2,.65,.3,1); }
+.collection-visual::after { content: ''; position: absolute; inset: 50% 0 0; background: linear-gradient(transparent, #11110f99); opacity: 0; transition: opacity 300ms; pointer-events: none; }
+.collection-index { position: absolute; top: 12px; left: 12px; padding: 7px 9px; background: var(--paper); color: var(--ink); font: 12px var(--font-geist-mono), monospace; letter-spacing: .04em; }
+.collection-explore { position: absolute; z-index: 1; bottom: 20px; left: 20px; right: 20px; display: flex; align-items: center; justify-content: space-between; color: white; font-size: 14px; opacity: 0; transform: translateY(8px); transition: opacity 300ms, transform 300ms; }
+.collection-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.collection-caption h3 { margin: 0; font-size: clamp(16px, 1.6vw, 22px); font-weight: 500; letter-spacing: -.025em; line-height: 1.3; text-transform: uppercase; overflow-wrap: anywhere; }
+.collection-arrow { flex: 0 0 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; transition: background 250ms, color 250ms, transform 250ms; }
+.collection-discovery .collection-grid svg { width: 16px; height: 16px; }
+.collection-discovery .collection-grid > a:is(:hover, :focus-visible) img { transform: scale(1.045); filter: none; }
+.collection-discovery .collection-grid > a:is(:hover, :focus-visible) .collection-visual::after { opacity: 1; }
+.collection-discovery .collection-grid > a:is(:hover, :focus-visible) .collection-explore { opacity: 1; transform: translateY(0); }
+.collection-discovery .collection-grid > a:is(:hover, :focus-visible) .collection-arrow { background: var(--ink); color: var(--paper); transform: rotate(-35deg); }
+.collection-discovery .collection-grid > a:focus-visible { outline: 2px solid var(--ink); outline-offset: 5px; }
+@media (max-width: 900px) {
+  .collection-discovery .collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; }
+}
+@media (max-width: 600px) {
+  .collection-discovery .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .collection-intro { font-size: 14px; }
+  .collection-discovery .collection-grid { gap: 20px 12px; }
+  .collection-visual { aspect-ratio: 4 / 5; }
+  .collection-index { top: 8px; left: 8px; padding: 5px 6px; }
+  .collection-caption { align-items: flex-start; gap: 6px; padding-block: 12px; }
+  .collection-caption h3 { font-size: 14px; padding-top: 6px; }
+  .collection-arrow { flex-basis: 28px; height: 28px; }
+  .collection-explore { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collection-discovery .collection-grid img, .collection-visual::after, .collection-explore, .collection-arrow { transition: none; }
+  .collection-discovery .collection-grid > a:is(:hover, :focus-visible) img { transform: none; }
+}

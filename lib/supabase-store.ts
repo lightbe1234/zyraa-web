@@ -1,4 +1,5 @@
 import type { Category, Product } from './catalog';
+import type { HomeCollectionCard } from './home-collection-cards';
 import { getSupabaseAdmin } from './supabase-server';
 
 export type StoreOrder = {
@@ -35,6 +36,30 @@ export type StoreSettings = {
 };
 
 export type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
+
+export async function getHomeCollectionCards({ includeInactive = false } = {}): Promise<HomeCollectionCard[]> {
+  let query = getSupabaseAdmin().from('home_collection_cards').select('*').order('sort_order');
+  if (!includeInactive) query = query.eq('enabled', true);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => ({
+    key: row.key,
+    eyebrow: row.eyebrow,
+    title: row.title,
+    image: row.image,
+    collectionSlug: row.collection_slug,
+    sortOrder: row.sort_order,
+    enabled: row.enabled,
+  }));
+}
+
+export async function updateHomeCollectionCard(card: HomeCollectionCard, actorEmail: string) {
+  const { error } = await getSupabaseAdmin().rpc('admin_update_home_collection_card', {
+    p_card: card,
+    p_actor_email: actorEmail,
+  });
+  if (error) throw new Error(error.message);
+}
 
 export async function getCollections({ includeInactive = false } = {}): Promise<Category[]> {
   let query = getSupabaseAdmin().from('store_collections').select('slug,name,image,active').order('sort_order');
