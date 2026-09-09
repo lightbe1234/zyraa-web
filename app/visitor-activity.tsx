@@ -2,11 +2,39 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
+const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-VRVLEF7HSN';
+type Gtag = (...args: unknown[]) => void;
+function allowed() {
+  try { return localStorage.getItem('zyra-analytics-choice') !== 'decline' && navigator.doNotTrack !== '1' && !(navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl; }
+  catch { return false; }
+}
+function gtag() {
+  if (!allowed()) return undefined;
+  const win = window as typeof window & { dataLayer?: unknown[][]; gtag?: Gtag };
+  win.dataLayer ||= [];
+  win.gtag ||= (...args: unknown[]) => { win.dataLayer!.push(args); };
+  if (!document.getElementById('zyra-google-analytics')) {
+    const script = document.createElement('script'); script.id = 'zyra-google-analytics'; script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`; document.head.appendChild(script);
+    win.gtag('js', new Date()); win.gtag('config', gaId, { send_page_view: false, anonymize_ip: true });
+  }
+  return win.gtag;
+}
+
 export function trackActivity(action: 'page_view' | 'add_to_bag' | 'checkout_view', path: string) {
   try {
     if (localStorage.getItem('zyra-analytics-choice') === 'decline' || navigator.doNotTrack === '1' || (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl) return;
     void fetch('/api/visitor-activity', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, path }) }).catch(() => {});
+    const send = gtag();
+    if (action === 'page_view') send?.('event', 'page_view', { page_path: path, page_location: location.href, page_title: document.title });
+    if (action === 'add_to_bag') send?.('event', 'add_to_cart', { currency: 'PKR', items: [{ item_id: path.split('/').pop() }] });
+    if (action === 'checkout_view') send?.('event', 'begin_checkout', { currency: 'PKR' });
   } catch { /* Shopping remains available when storage is disabled. */ }
+}
+
+export function trackPurchase(order: { number: string; total: number; shipping: number; items: Array<{ slug: string; qty: number; unitPrice: number }> }) {
+  try { gtag()?.('event', 'purchase', { transaction_id: order.number, value: order.total / 100, shipping: order.shipping / 100, currency: 'PKR', items: order.items.map(item => ({ item_id: item.slug, item_name: item.slug.replaceAll('-', ' '), price: item.unitPrice / 100, quantity: item.qty })) }); }
+  catch { /* Order completion must not depend on analytics. */ }
 }
 
 export function ActivityConsent() {
@@ -19,7 +47,7 @@ export function ActivityPrivacySetting() {
   const [disabled, setDisabled] = useState<boolean | null>(null);
   const [message, setMessage] = useState('');
   useEffect(() => { try { setDisabled(localStorage.getItem('zyra-analytics-choice') === 'decline'); } catch { setMessage('Your browser has blocked preference storage.'); } }, []);
-  return <section><h2>Your analytics preference</h2><p>You can turn off activity analytics for this browser at any time. We also respect Do Not Track and Global Privacy Control. Previous opt-outs remain in effect.</p><button className="outline-button" disabled={disabled === null} onClick={() => { try { localStorage.setItem('zyra-analytics-choice', disabled ? 'allow' : 'decline'); setDisabled(!disabled); setMessage(disabled ? 'Analytics enabled, subject to your browser privacy settings.' : 'Analytics disabled for this browser.'); } catch { setMessage('The preference could not be saved in this browser.'); } }}>{disabled ? 'Enable analytics' : 'Turn off analytics'}</button><p role="status">{message}</p></section>;
+  return <section><h2>Your analytics preference</h2><p>You can turn off activity analytics for this browser at any time. We also respect Do Not Track and Global Privacy Control. Previous opt-outs remain in effect.</p><button className="outline-button" disabled={disabled === null} onClick={() => { try { localStorage.setItem('zyra-analytics-choice', disabled ? 'allow' : 'decline'); setDisabled(!disabled); window.dispatchEvent(new Event('zyra-analytics-change')); setMessage(disabled ? 'Analytics enabled, subject to your browser privacy settings.' : 'Analytics disabled for this browser.'); } catch { setMessage('The preference could not be saved in this browser.'); } }}>{disabled ? 'Enable analytics' : 'Turn off analytics'}</button><p role="status">{message}</p></section>;
 }
 
 type Data = { summary: { visitors: number; views: number; bagAdds: number; checkouts: number }; visitors: { visitor: string; firstSeen: number; lastSeen: number; events: number; device: string }[]; events: { visitor: string; action: string; path: string; created: number }[] };

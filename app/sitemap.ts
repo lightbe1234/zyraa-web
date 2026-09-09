@@ -1,17 +1,11 @@
 import type { MetadataRoute } from 'next';
-import { products } from '@/lib/catalog';
-export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  return [
-    { url: base, lastModified: new Date(), priority: 1 },
-    { url: `${base}/collections`, lastModified: new Date(), priority: 0.9 },
-    ...['shipping', 'returns', 'faq', 'fabric-care', 'contact', 'privacy', 'terms', 'website-terms'].map(page => ({
-      url: `${base}/pages/${page}`, lastModified: new Date(), priority: 0.5,
-    })),
-    ...products.map((product) => ({
-      url: `${base}/products/${product.slug}`,
-      lastModified: new Date(),
-      priority: 0.7,
-    })),
-  ];
+import { readSeoCatalog } from '@/lib/seo-catalog';
+import { absoluteUrl, helpSeo } from '@/lib/seo';
+export const dynamic = 'force-dynamic';
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { catalog: products, collections, available } = await readSeoCatalog();
+  if (!available) throw new Error('Live catalog is unavailable; retry sitemap later.');
+  const paths = ['/', '/collections', ...Object.keys(helpSeo).map(key => `/pages/${key}`),
+    ...collections.map(c => `/collections/${c.slug}`), ...products.map(p => `/products/${p.slug}`)];
+  return [...new Set(paths)].map(path => ({ url: absoluteUrl(path) }));
 }

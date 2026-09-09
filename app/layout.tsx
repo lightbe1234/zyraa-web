@@ -11,6 +11,7 @@ import './visitor-activity.css';
 import './checkout-polish.css';
 import './payment-setup.css';
 import { ActivityConsent } from './visitor-activity';
+import { absoluteUrl, siteOrigin, serializeSchema } from '@/lib/seo';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({
@@ -20,12 +21,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    siteOrigin(),
   ),
   title: 'ZYRA — Independent Streetwear',
   description:
     'Original streetwear essentials, engineered in Karachi for life after hours.',
-  alternates: { canonical: '/' },
   openGraph: {
     title: 'ZYRA — Built for After Hours',
     description: 'Independent streetwear. Karachi / 2026.',
@@ -37,6 +37,9 @@ export const metadata: Metadata = {
     description: 'Independent streetwear. Karachi / 2026.',
     images: ['/og.png'],
   },
+  verification: {
+    google: '68PKPCYHS7FaeLxtNrEUnMhwzdbrSTJfe3JGyCXdJ3U',
+  },
 };
 
 export default function RootLayout({
@@ -45,14 +48,10 @@ export default function RootLayout({
   const organization = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': absoluteUrl('/#organization'),
     name: 'ZYRA',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-    logo: '/og.png',
-    contactPoint: {
-      '@type': 'ContactPoint',
-      email: 'hello@zyra.store',
-      contactType: 'customer support',
-    },
+    url: absoluteUrl('/'),
+    logo: absoluteUrl('/og.png'),
   };
   return (
     <html lang="en">
@@ -61,7 +60,7 @@ export default function RootLayout({
         <ActivityConsent />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
+          dangerouslySetInnerHTML={{ __html: serializeSchema([organization, { '@context': 'https://schema.org', '@type': 'WebSite', name: 'ZYRA', url: absoluteUrl('/'), inLanguage: 'en-PK' }]) }}
         />
       </body>
     </html>

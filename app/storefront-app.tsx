@@ -36,10 +36,11 @@ import {
 import { seedReviews, type Review } from '@/lib/reviews';
 import { addBagSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
+import { collectionDescription } from '@/lib/seo';
 import { CustomerHelp } from './customer-help';
 import { OrderTracking } from './order-tracking';
 import { ProductDetailsEditor } from './product-details-editor';
-import { VisitorDashboard, trackActivity } from './visitor-activity';
+import { VisitorDashboard, trackActivity, trackPurchase } from './visitor-activity';
 import { PaymentSetup } from './payment-setup';
 import { checkoutAttempt } from '@/lib/checkout-attempt';
 import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
@@ -1863,7 +1864,7 @@ function CatalogView({
         </h1>
         <p>
           {category
-            ? 'A focused edit of weight, proportion and everyday utility.'
+            ? collectionDescription(category.name)
             : 'Explore the ZYRA collection. Find your fit, colour and next everyday favourite.'}
         </p>
       </div>
@@ -2064,6 +2065,7 @@ function CheckoutView({
         return;
       }
       sessionStorage.removeItem('zyra-checkout-attempt');
+      trackPurchase(order);
       onComplete();
       location.href = `/order-confirmation/${order.token}`;
     } catch (err) {

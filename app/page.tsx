@@ -4,6 +4,8 @@ import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-
 import { getCatalog, getCollections, getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
 
 export const dynamic = 'force-dynamic';
+import { pageMetadata } from '@/lib/seo';
+export const metadata = pageMetadata('Streetwear & Everyday Clothing in Pakistan', 'Discover ZYRA streetwear in Pakistan. Shop tees, everyday essentials and new styles, with product sizing, delivery information and 7-day size exchanges.', '/');
 
 export default async function Home() {
   let initialCatalog = seededProducts;
