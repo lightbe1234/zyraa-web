@@ -13,7 +13,8 @@
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "db:seed": "node --experimental-strip-types scripts/seed-supabase.ts"
+    "db:seed": "node --experimental-strip-types scripts/seed-supabase.ts",
+    "catalog:import-downloads": "node --env-file=.env.local --experimental-strip-types scripts/import-download-catalog.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
