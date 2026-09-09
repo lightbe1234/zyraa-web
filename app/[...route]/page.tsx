@@ -1,7 +1,7 @@
 import StorefrontApp from '../storefront-app';
 import { notFound } from 'next/navigation';
 import { readSeoCatalog } from '@/lib/seo-catalog';
-import { absoluteUrl, breadcrumbs, collectionDescription, helpSeo, pageMetadata, productMetadata, productSchema, serializeSchema } from '@/lib/seo';
+import { absoluteUrl, breadcrumbs, collectionDescription, collectionTitle, helpSeo, pageMetadata, productMetadata, productSchema, serializeSchema } from '@/lib/seo';
 import { categories, products as seededProducts, type Category } from '@/lib/catalog';
 import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
 import { getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ route: st
     const category = collections.find(c => c.slug === route[1]);
     if (category || route.length === 1) {
       const name = category?.name || 'All Clothing';
-      return pageMetadata(`${name} in Pakistan`, collectionDescription(name), path, category?.image, available);
+      return pageMetadata(collectionTitle(name), collectionDescription(name), path, category?.image, available);
     }
   }
   if (route[0] === 'pages' && route.length === 2 && helpSeo[route[1]]) {
@@ -59,9 +59,16 @@ export default async function CatchAll({
   initialCollections = seoData.collections;
   const schema: unknown[] = [];
   if (product && seoData.available) schema.push(productSchema(product), breadcrumbs([['Home', '/'], ['Collections', '/collections'], [product.name, path]]));
-  if (route[0] === 'collections' && seoData.available) schema.push(breadcrumbs([['Home', '/'], [collection?.name || 'Collections', path]]), {
-    '@context': 'https://schema.org', '@type': 'CollectionPage', name: collection?.name || 'All collections', url: absoluteUrl(path),
-  });
+  if (route[0] === 'collections' && seoData.available) {
+    const listedProducts = collection ? seoData.catalog.filter(item => item.collection === collection.name || item.category === collection.name) : seoData.catalog;
+    schema.push(breadcrumbs([['Home', '/'], [collection?.name || 'Collections', path]]), {
+      '@context': 'https://schema.org', '@type': 'CollectionPage', name: collection?.name || 'All collections', url: absoluteUrl(path),
+      mainEntity: {
+        '@type': 'ItemList', numberOfItems: listedProducts.length,
+        itemListElement: listedProducts.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, url: absoluteUrl(`/products/${item.slug}`) })),
+      },
+    });
+  }
   if (publicHelp) schema.push(breadcrumbs([['Home', '/'], [publicHelp[0], path]]));
   return <><StorefrontApp path={path} initialCatalog={initialCatalog} initialSettings={initialSettings} initialSections={initialSections} initialCollections={initialCollections} initialHomeCollectionCards={initialHomeCollectionCards} />{schema.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeSchema(schema) }} />}</>;
 }

@@ -21,7 +21,22 @@ export const helpSeo: Record<string, [string, string]> = {
   'website-terms': ['Website Terms of Use', 'Read the terms for browsing and using the ZYRA online store and its customer-help tools.'],
 };
 export function collectionDescription(name: string) {
-  return `Shop ${name.toLowerCase()} at ZYRA in Pakistan. Compare styles, colours, available sizes and prices, then check each piece’s fit and care details.`;
+  const descriptions: Record<string, string> = {
+    'oversized tees': 'Shop graphic and plain oversized T-shirts online in Pakistan. Compare ZYRA colours, sizes, prices and relaxed-fit details before ordering.',
+    essentials: 'Shop men’s polo shirts, essential T-shirts and coordinated streetwear sets online in Pakistan. Compare colours, sizes, prices and fit details.',
+    bottoms: 'Shop men’s trousers online in Pakistan, from relaxed line trousers to tailored and track styles. Compare colours, sizes, prices and fit details.',
+    outerwear: 'Shop ZYRA streetwear accessories and outer layers online in Pakistan. Compare colours, availability, prices and product details.',
+  };
+  return descriptions[name.toLowerCase()] || `Shop ${name.toLowerCase()} online at ZYRA in Pakistan. Compare styles, colours, available sizes, prices and fit details.`;
+}
+export function collectionTitle(name: string) {
+  const titles: Record<string, string> = {
+    'oversized tees': 'Oversized T-Shirts in Pakistan',
+    essentials: 'Men’s Polo Shirts & Essentials Pakistan',
+    bottoms: 'Men’s Trousers Online in Pakistan',
+    outerwear: 'Streetwear Accessories Pakistan',
+  };
+  return titles[name.toLowerCase()] || `${name} Online in Pakistan`;
 }
 export function pageMetadata(title: string, description: string, path: string, image = '/og.png', index = true): Metadata {
   const fullTitle = `${title} | ZYRA`;
@@ -34,7 +49,14 @@ export function pageMetadata(title: string, description: string, path: string, i
   };
 }
 export function productMetadata(product: Product) {
-  return pageMetadata(`${product.name} – ${product.category}`, `${product.name} by ZYRA. ${product.description}`.replace(/\s+/g, ' ').slice(0, 165), `/products/${product.slug}`, product.image);
+  const categoryTerms: Record<string, string> = {
+    'oversized tees': 'Oversized T-Shirt Pakistan',
+    essentials: 'Men’s Streetwear Pakistan',
+    bottoms: 'Men’s Trousers Pakistan',
+    outerwear: 'Streetwear Pakistan',
+  };
+  const searchTerm = categoryTerms[product.category.toLowerCase()] || `${product.category} Pakistan`;
+  return pageMetadata(`${product.name} – ${searchTerm}`, `${product.name} by ZYRA. ${product.description}`.replace(/\s+/g, ' ').slice(0, 165), `/products/${product.slug}`, product.image);
 }
 export function productSchema(product: Product) {
   return {
