@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, ChevronDown, Clock3, CreditCard, MapPin, Package, PackageCheck, RefreshCw, ShieldCheck, Truck } from 'lucide-react';
 import { money, type Product } from '@/lib/catalog';
 import type { StoreOrder } from '@/lib/supabase-store';
@@ -20,9 +20,13 @@ export function OrderTracking({ catalog }: { catalog: Product[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [checked, setChecked] = useState('');
+  const [orderNumber, setOrderNumber] = useState('');
   const form = useRef<HTMLFormElement>(null);
   const result = useRef<HTMLElement>(null);
   const pending = useRef(false);
+  useEffect(() => {
+    setOrderNumber(new URLSearchParams(window.location.search).get('order') || '');
+  }, []);
   const lookup = async (event?: FormEvent) => {
     event?.preventDefault();
     if (pending.current || !form.current?.reportValidity()) return;
@@ -41,7 +45,7 @@ export function OrderTracking({ catalog }: { catalog: Product[] }) {
   const current = order ? stages.indexOf(order.status) : -1;
   return <main className="logistics-page">
     <nav className="logistics-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><span aria-current="page">Track your order</span></nav>
-    <header className="logistics-hero"><div><p className="eyebrow">ZYRA / Delivery desk</p><h1>Your order.<br /><em>Every next step.</em></h1><p>From confirmation to delivery. Find your latest order update in one place.</p><div className="logistics-hero-note"><ShieldCheck />Your order details stay between you and us.</div></div><div className="logistics-lookup"><div className="logistics-form-heading"><Package /><h2>Find your parcel</h2></div><form ref={form} onSubmit={lookup}><label>Order number<input name="number" required maxLength={100} placeholder="e.g. ZY-260903-XXXX" autoComplete="off" /></label><label>Checkout email or phone<input name="contact" required maxLength={160} placeholder="The contact used for this order" autoComplete="off" /></label><button disabled={busy} type="submit">{busy ? 'Checking your order…' : 'Track my order'}{busy ? <RefreshCw className="logistics-spin" /> : <ArrowRight />}</button>{error && <p className="logistics-error" role="alert">{error}</p>}</form><p>Find your order number in your order confirmation. <a href="/pages/contact">Need help?</a></p></div></header>
+    <header className="logistics-hero"><div><p className="eyebrow">ZYRA / Delivery desk</p><h1>Your order.<br /><em>Every next step.</em></h1><p>From confirmation to delivery. Find your latest order update in one place.</p><div className="logistics-hero-note"><ShieldCheck />Your order details stay between you and us.</div></div><div className="logistics-lookup"><div className="logistics-form-heading"><Package /><h2>Find your parcel</h2></div><form ref={form} onSubmit={lookup}><label>Order number<input name="number" required maxLength={100} placeholder="e.g. ZY-260903-XXXX" autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value)} /></label><label>Checkout email or phone<input name="contact" required maxLength={160} placeholder="The contact used for this order" autoComplete="off" /></label><button disabled={busy} type="submit">{busy ? 'Checking your order…' : 'Track my order'}{busy ? <RefreshCw className="logistics-spin" /> : <ArrowRight />}</button>{error && <p className="logistics-error" role="alert">{error}</p>}</form><p>Find your order number in your order confirmation. <a href="/pages/contact">Need help?</a></p></div></header>
     <div className="logistics-reassurance"><span><PackageCheck />Order status</span><span><CreditCard />Payment summary</span><span><MapPin />Delivery details</span></div>
     <div role="status" className="sr-only">{busy ? 'Loading order details' : order ? `Order found: ${labels[order.status] || order.status}` : ''}</div>
     {order && <section ref={result} className="logistics-result" aria-label="Your order tracking result"><header><div><p className="eyebrow">Order {order.number}</p><h2>{labels[order.status] || 'Order update'}</h2><p>{messages[order.status] || 'Contact ZYRA for help with this order’s current status.'}</p></div><div className="logistics-updated"><span><Clock3 />Checked at {checked}</span><button type="button" disabled={busy} onClick={() => void lookup()}><RefreshCw />Refresh status</button></div></header>

@@ -7,6 +7,10 @@ import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-
 import { getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
 
 export const dynamic = 'force-dynamic';
+const specialCollections: Record<string, string> = {
+  'new-arrivals': 'New Arrivals',
+  'best-sellers': 'Best Sellers',
+};
 export async function generateMetadata({ params }: { params: Promise<{ route: string[] }> }) {
   const { route } = await params;
   const path = `/${route.join('/')}`;
@@ -18,8 +22,9 @@ export async function generateMetadata({ params }: { params: Promise<{ route: st
   }
   if (route[0] === 'collections' && route.length <= 2) {
     const category = collections.find(c => c.slug === route[1]);
-    if (category || route.length === 1) {
-      const name = category?.name || 'All Clothing';
+    const specialName = specialCollections[route[1]];
+    if (category || specialName || route.length === 1) {
+      const name = category?.name || specialName || 'All Clothing';
       return pageMetadata(collectionTitle(name), collectionDescription(name), path, category?.image, available);
     }
   }
@@ -39,9 +44,10 @@ export default async function CatchAll({
   const path = `/${route.join('/')}`;
   const product = route[0] === 'products' && route.length === 2 ? seoData.catalog.find(p => p.slug === route[1]) : undefined;
   const collection = seoData.collections.find(c => c.slug === route[1]);
+  const specialCollection = specialCollections[route[1]];
   const publicHelp = route[0] === 'pages' && route.length === 2 && helpSeo[route[1]];
   const utility = ['cart', 'checkout', 'search', 'track-order', 'account', 'customise-your-shirt'].includes(route[0]) && route.length === 1 || route[0] === 'admin' || route[0] === 'order-confirmation';
-  if (!product && !publicHelp && !utility && !(route[0] === 'collections' && (route.length === 1 || route.length === 2 && collection))) notFound();
+  if (!product && !publicHelp && !utility && !(route[0] === 'collections' && (route.length === 1 || route.length === 2 && (collection || specialCollection)))) notFound();
   let initialCatalog = seededProducts;
   let initialSettings: StoreSettings | undefined;
   let initialSections: ContentSection[] = [];
@@ -61,9 +67,16 @@ export default async function CatchAll({
   const schema: unknown[] = [];
   if (product && seoData.available) schema.push(productSchema(product), breadcrumbs([['Home', '/'], ['Collections', '/collections'], [product.name, path]]));
   if (route[0] === 'collections' && seoData.available) {
-    const listedProducts = collection ? seoData.catalog.filter(item => item.collection === collection.name || item.category === collection.name) : seoData.catalog;
-    schema.push(breadcrumbs([['Home', '/'], [collection?.name || 'Collections', path]]), {
-      '@context': 'https://schema.org', '@type': 'CollectionPage', name: collection?.name || 'All collections', url: absoluteUrl(path),
+    const listedProducts = collection
+      ? seoData.catalog.filter(item => item.collection === collection.name || item.category === collection.name)
+      : route[1] === 'new-arrivals'
+        ? seoData.catalog.filter(item => item.newArrival)
+        : route[1] === 'best-sellers'
+          ? seoData.catalog.filter(item => item.featured)
+          : seoData.catalog;
+    const collectionName = collection?.name || specialCollection || 'All collections';
+    schema.push(breadcrumbs([['Home', '/'], [collectionName, path]]), {
+      '@context': 'https://schema.org', '@type': 'CollectionPage', name: collectionName, url: absoluteUrl(path),
       mainEntity: {
         '@type': 'ItemList', numberOfItems: listedProducts.length,
         itemListElement: listedProducts.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, url: absoluteUrl(`/products/${item.slug}`) })),

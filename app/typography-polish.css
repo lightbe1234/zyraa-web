@@ -1,0 +1,385 @@
+/* One shared type system: sharp display copy, calm reading copy, and clear utility labels. */
+:root {
+  --type-display: var(--font-display), Arial, sans-serif;
+  --type-body: var(--font-body), Arial, sans-serif;
+  --type-meta: var(--font-geist-mono), monospace;
+}
+
+body {
+  font-family: var(--type-body);
+  font-weight: 450;
+  letter-spacing: -0.018em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(h1, h2, h3, h4) {
+  font-family: var(--type-display);
+  font-feature-settings: 'ss01' 1, 'ss02' 1, 'ss03' 1;
+  text-wrap: balance;
+}
+
+:where(main p, main li, main dd) {
+  text-wrap: pretty;
+}
+
+:where(input, textarea, select, button) {
+  font-family: var(--type-body);
+}
+
+:where(input, textarea, select) {
+  letter-spacing: -0.01em;
+}
+
+/* Display is confident, without the cramped all-caps feel on smaller screens. */
+.hero-copy h1,
+.catalog-hero h1,
+.bag-page > header h1,
+.product-info h1,
+.pdp-info h1,
+.section-heading h2,
+.manifesto h2,
+.confirmation h1,
+.checkout-layout h1,
+.simple-page h1,
+.admin-main > header h1 {
+  font-family: var(--type-display);
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+.hero-copy h1,
+.catalog-hero h1,
+.bag-page > header h1,
+.section-heading h2,
+.manifesto h2 {
+  letter-spacing: -0.07em;
+}
+
+.product-info h1,
+.pdp-info h1,
+.checkout-layout h1,
+.confirmation h1,
+.simple-page h1 {
+  letter-spacing: -0.052em;
+}
+
+/* Mono is retained only where it adds a streetwear/editorial utility feel. */
+.eyebrow,
+.announcement,
+.promo,
+.header-menu-button,
+.header-primary-nav a,
+.header-tool,
+.product-info legend,
+.catalog-tools label,
+.catalog-tools select,
+.catalog-count,
+.pdp-sale-label,
+.pdp-gallery-controls span,
+.pdp-options legend,
+.zs-heading > span,
+.zs-breadcrumb,
+.zs-milestones b {
+  font-family: var(--type-meta);
+  letter-spacing: 0.09em;
+}
+
+/* Make body text feel human and easy to scan, especially on policies and checkout. */
+.product-info > p,
+.pdp-summary,
+.pdp-accordions details > div,
+.simple-page p,
+.checkout-intro,
+.form-grid label,
+.customer-help-page p,
+.policy-page p,
+.order-tracking-page p {
+  line-height: 1.7;
+}
+
+.product-card h3,
+.product-card h2,
+.pdp-assurances strong,
+.trust-title,
+.cs-item-details,
+.zs-fabric-copy b {
+  letter-spacing: -0.025em;
+}
+
+.product-meta h3,
+.collection-caption h3 {
+  font-family: var(--type-display);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  text-transform: none;
+}
+
+.product-meta h3 { font-size: clamp(15px, 1.2vw, 18px); }
+.product-meta p { font-size: 10px; letter-spacing: 0.085em; }
+.collection-caption h3 { font-size: clamp(19px, 1.65vw, 24px); }
+
+.section-description,
+.collection-intro,
+.manifesto-copy,
+.trust-desc,
+.zyra-stay-connected > p:not(.eyebrow) {
+  font-family: var(--type-body);
+  letter-spacing: -0.018em;
+}
+
+.wordmark {
+  font-family: var(--type-display);
+  font-weight: 700;
+  letter-spacing: -0.085em;
+}
+
+.product-price,
+.pdp-price,
+.summary-card strong,
+.zs-price-pin strong {
+  font-family: var(--type-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.simple-page :where(h2, h3),
+.customer-help-page :where(h2, h3),
+.policy-page :where(h2, h3),
+.order-tracking-page :where(h2, h3) {
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  font-weight: 620;
+}
+
+/* Unified section rhythm across every storefront and service module. */
+:is(
+  .section-heading,
+  .editorial-grid,
+  .campaign-banner,
+  .reviews-title-block,
+  .trust-heading,
+  .footer-mission,
+  .care-block,
+  .care-bottom,
+  .logistics-form-heading,
+  .logistics-result,
+  .logistics-journey,
+  .logistics-support,
+  .logistics-partners,
+  .logistics-contact,
+  .pdp-reviews,
+  .pdp-related,
+  .zs-panel-heading,
+  .zs-faq,
+  .admin-section-head,
+  .admin-form,
+  .payment-setup
+) :is(h2, h3) {
+  font-family: var(--type-display);
+  font-weight: 620;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+:is(
+  .care-hero,
+  .care-track,
+  .logistics-hero,
+  .zs-heading,
+  .cs-page-heading,
+  .admin-login
+) h1 {
+  font-family: var(--type-display);
+  font-weight: 650;
+  line-height: 1.02;
+  letter-spacing: -0.06em;
+  text-wrap: balance;
+}
+
+:is(
+  .care-card,
+  .logistics-items,
+  .logistics-facts,
+  .logistics-journey,
+  .pdp-modal,
+  .admin-empty,
+  .visitor-dashboard,
+  .cs-admin,
+  .zs-fabric-copy
+) h3 {
+  font-family: var(--type-display);
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.032em;
+}
+
+:is(
+  .section-description,
+  .collection-intro,
+  .manifesto-copy,
+  .editorial-grid,
+  .campaign-banner,
+  .reviews-meta-banner,
+  .trust-desc,
+  .care-hero,
+  .care-card,
+  .care-block,
+  .care-bottom,
+  .logistics-hero,
+  .logistics-result,
+  .logistics-journey,
+  .logistics-support,
+  .logistics-partners,
+  .logistics-contact,
+  .pdp-summary,
+  .pdp-accordions,
+  .checkout-intro,
+  .confirmation,
+  .simple-page,
+  .zs-panel-heading,
+  .zs-faq,
+  .visitor-dashboard,
+  .payment-setup
+) p {
+  font-family: var(--type-body);
+  font-size: 15px;
+  line-height: 1.68;
+  letter-spacing: -0.015em;
+}
+
+/* One treatment for labels and metadata; this prevents random tiny styles. */
+:is(
+  .eyebrow,
+  .hero-caption,
+  .collection-index,
+  .product-meta > p,
+  .pdp-sale-label,
+  .form-section,
+  .zs-panel-heading > span,
+  .care-kicker,
+  .logistics-kicker,
+  .admin-product-form label,
+  .admin-form > label
+) {
+  font-family: var(--type-meta);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+}
+
+/* Cards, accordions and actions now speak with the same weight. */
+:is(
+  .care-faqs,
+  .logistics-faqs,
+  .pdp-accordions,
+  .zs-faq,
+  .product-info
+) summary {
+  font-family: var(--type-body);
+  font-size: 15px;
+  font-weight: 580;
+  line-height: 1.45;
+  letter-spacing: -0.018em;
+}
+
+:is(
+  .dark-button,
+  .outline-button,
+  .light-button,
+  .care-button,
+  .pdp-primary,
+  .pdp-secondary,
+  .zs-next,
+  .admin-file-button
+) {
+  font-family: var(--type-body);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:is(.form-grid, .stack-form, .admin-product-form, .admin-form, .write-review-form) :is(input, textarea, select) {
+  font-family: var(--type-body);
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+}
+
+[data-purpose="main-brand-footer"] {
+  font-family: var(--type-body) !important;
+  letter-spacing: -0.01em;
+}
+
+[data-purpose="main-brand-footer"] :is(h2, h3) {
+  font-family: var(--type-display) !important;
+  font-weight: 620;
+  letter-spacing: -0.035em;
+}
+
+[data-purpose="main-brand-footer"] [data-purpose="links-section"] h3 {
+  font-family: var(--type-meta) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.075em !important;
+  text-transform: uppercase;
+}
+
+.dark-button,
+.outline-button,
+.light-button,
+.pdp-primary,
+.pdp-secondary,
+.zs-next {
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+
+.dark-button,
+.outline-button,
+.light-button,
+.pdp-primary,
+.pdp-secondary {
+  text-transform: none;
+}
+
+@media (max-width: 640px) {
+  body { letter-spacing: -0.012em; }
+
+  :where(input, textarea, select) { font-size: 16px; }
+
+  .hero-copy h1,
+  .catalog-hero h1,
+  .bag-page > header h1,
+  .section-heading h2,
+  .manifesto h2 { letter-spacing: -0.057em; }
+
+  .eyebrow,
+  .announcement,
+  .promo,
+  .header-menu-button,
+  .header-primary-nav a,
+  .header-tool { letter-spacing: 0.065em; }
+
+  :is(
+    .section-description,
+    .collection-intro,
+    .manifesto-copy,
+    .care-hero,
+    .care-card,
+    .care-block,
+    .logistics-hero,
+    .logistics-result,
+    .logistics-journey,
+    .pdp-summary,
+    .simple-page,
+    .zs-panel-heading,
+    .zs-faq,
+    .visitor-dashboard
+  ) p { font-size: 14px; line-height: 1.65; }
+}

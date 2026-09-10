@@ -9,7 +9,9 @@ import {
   ChevronDown,
   ChevronRight,
   CircleUserRound,
+  Copy,
   CreditCard,
+  Download,
   Eye,
   Menu,
   Landmark,
@@ -36,7 +38,6 @@ import {
 import { seedReviews, type Review } from '@/lib/reviews';
 import { addBagSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
-import { collectionDescription } from '@/lib/seo';
 import { CustomerHelp } from './customer-help';
 import { OrderTracking } from './order-tracking';
 import { ProductDetailsEditor } from './product-details-editor';
@@ -45,6 +46,7 @@ import { PaymentSetup } from './payment-setup';
 import { checkoutAttempt } from '@/lib/checkout-attempt';
 import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
 import { CustomShirtBanner, CustomShirtStudio, CustomShirtAdmin, CustomItemDetails, CustomArtworkLinks } from './custom-shirt-studio';
+import { PremiumFooter } from './premium-footer';
 import type { CustomDetails } from '@/lib/custom-shirts';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
@@ -338,7 +340,7 @@ export default function StorefrontApp({
           onComplete={() => setCart([])}
         />
       ) : path.startsWith('/order-confirmation/') ? (
-        <ConfirmationView token={path.split('/')[2]} settings={storeSettings} />
+        <ConfirmationView token={path.split('/')[2]} settings={storeSettings} catalog={catalog} />
       ) : path === '/track-order' ? (
         <OrderTracking catalog={catalog} />
       ) : path === '/account' ? (
@@ -360,7 +362,7 @@ export default function StorefrontApp({
       ) : (
         <InfoPage path={path} settings={storeSettings} />
       )}
-      {storefront && <Footer settings={storeSettings} collections={collectionsList} />}
+      {storefront && <PremiumFooter settings={storeSettings} collections={collectionsList} />}
       <Drawer open={menuOpen} close={() => setMenuOpen(false)} collections={collectionsList} />
       <SearchPanel open={searchOpen} close={() => setSearchOpen(false)} catalog={catalog} />
       <CartPanel
@@ -1727,25 +1729,30 @@ function Home({
         )}
       />
       <CustomShirtBanner />
-      {enabled('collection-grid') && <section className="section-shell collection-discovery">
+      {enabled('collection-grid') && <section className="section-shell collection-discovery" id="collections">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Your style starts here</p>
-            <h2>Collections</h2>
+            <p className="eyebrow">Shop by mood</p>
+            <h2>Pick your lane.</h2>
           </div>
-          <p className="collection-intro">From graphic tees to easy essentials.<br />Find your next look, all in one place.</p>
+          <p className="collection-intro">Four edits. Zero guesswork.<br />Start with what feels like you.</p>
         </div>
         <div className="collection-grid">
           {collections.map((c, index) => (
-            <a href={`/collections/${c.slug}`} key={c.slug}>
+            <a href={`/collections/${c.slug}`} key={c.slug} className="collection-card">
               <div className="collection-visual">
                 <img src={media(c.image)} alt="" loading="lazy" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
-                <div className="collection-index" aria-hidden="true">ZYRA / {String(index + 1).padStart(2, '0')}</div>
-                <div className="collection-explore" aria-hidden="true">Explore collection <ArrowRight /></div>
-              </div>
-              <div className="collection-caption">
-                <h3>{c.name}</h3>
-                <div className="collection-arrow" aria-hidden="true"><ArrowRight /></div>
+                <div className="collection-index" aria-hidden="true">
+                  <span>EDIT {String(index + 1).padStart(2, '0')}</span>
+                  <strong>ZYRA SELECT</strong>
+                </div>
+                <div className="collection-caption">
+                  <div>
+                    <span className="collection-card-kicker">Made for your rotation</span>
+                    <h3>{c.name}</h3>
+                  </div>
+                  <div className="collection-arrow" aria-hidden="true"><ArrowRight /></div>
+                </div>
               </div>
             </a>
           ))}
@@ -1824,6 +1831,71 @@ function Home({
   );
 }
 
+function collectionPageStory(name: string) {
+  const stories: Record<string, { eyebrow: string; heading: string; copy: string; points: Array<[string, string]> }> = {
+    'oversized tees': {
+      eyebrow: 'The heavyweight edit',
+      heading: 'Room to move. Built to stay.',
+      copy: 'Heavy feel. Loose fit. Zero overthinking. The tee you reach for when the outfit needs one strong move.',
+      points: [['Relaxed shape', 'An easy drop through the shoulder.'], ['Quality feel', 'Fabric with weight, not stiffness.'], ['Repeat ready', 'Made for everyday wear.']],
+    },
+    hoodies: {
+      eyebrow: 'Layers, sorted',
+      heading: 'Soft weight. Clean shape.',
+      copy: 'Soft where it matters, structured where it shows. Throw one on and the fit is handled.',
+      points: [['Easy layer', 'Room to wear it your way.'], ['Soft inside', 'Comfort where it counts.'], ['Shape that lasts', 'A clean silhouette in rotation.']],
+    },
+    outerwear: {
+      eyebrow: 'Finish the fit',
+      heading: 'The layer that changes everything.',
+      copy: 'One good layer can carry the whole look. Clean shape, useful detail and no extra noise.',
+      points: [['Layer friendly', 'Built to sit over everyday fits.'], ['Useful details', 'Function without the noise.'], ['Street ready', 'A confident final layer.']],
+    },
+    essentials: {
+      eyebrow: 'Core rotation',
+      heading: 'Simple pieces. Better standards.',
+      copy: 'The no-fail part of your wardrobe. Easy colours, better fabric and a fit that works on repeat.',
+      points: [['Easy pairing', 'Works with what you own.'], ['Clean finish', 'No unnecessary detail.'], ['Daily comfort', 'Made for long wear.']],
+    },
+    bottoms: {
+      eyebrow: 'Built from the ground up',
+      heading: 'The right fall changes the fit.',
+      copy: 'The pair that makes everything above it look better. Relaxed, clean and ready for the daily rotation.',
+      points: [['Relaxed movement', 'Comfort without losing shape.'], ['Easy colours', 'Made to pair across the wardrobe.'], ['Clean line', 'A sharper everyday silhouette.']],
+    },
+    sweatshirts: {
+      eyebrow: 'Everyday layers',
+      heading: 'Comfort, with a cleaner edge.',
+      copy: 'All-day comfort without the lazy fit. Soft feel, clean shape and easy energy.',
+      points: [['Soft handle', 'Comfort from the first wear.'], ['Easy weight', 'Useful across changing weather.'], ['Low effort', 'Throw it on and go.']],
+    },
+    'new arrivals': {
+      eyebrow: 'Just landed',
+      heading: 'Fresh pieces. First pick.',
+      copy: 'New graphics, fresh shapes and limited runs. Get there before your size disappears.',
+      points: [['New drops', 'The latest pieces in one place.'], ['Limited runs', 'Selected quantities only.'], ['Easy checkout', 'COD and bank transfer available.']],
+    },
+    'best sellers': {
+      eyebrow: 'Most wanted',
+      heading: 'The pieces people come back for.',
+      copy: 'The fits that keep making it into carts. Easy to wear, hard to leave behind.',
+      points: [['Crowd picks', 'The most-loved ZYRA styles.'], ['Easy choices', 'Reliable fits and colours.'], ['7-day exchange', 'Try the fit with confidence.']],
+    },
+    'all collections': {
+      eyebrow: 'The full ZYRA edit',
+      heading: 'Every mood. One wardrobe.',
+      copy: 'Loud graphics, clean basics and everything between. Pick the version of you showing up today.',
+      points: [['Quality first', 'Fabric you notice immediately.'], ['Fits with intent', 'Every silhouette has a purpose.'], ['Made for rotation', 'Pieces designed for repeat wear.']],
+    },
+  };
+  return stories[name.toLowerCase()] || {
+    eyebrow: 'The ZYRA edit',
+    heading: `${name}, done the ZYRA way.`,
+    copy: 'A clean fit, a quality feel and no unnecessary noise. Made to stay in your rotation.',
+    points: [['Quality feel', 'Fabric chosen for repeat wear.'], ['Easy fit', 'Comfort with a clean shape.'], ['7-day exchange', 'A simpler way to find your fit.']] as Array<[string, string]>,
+  };
+}
+
 function CatalogView({
   path,
   catalog,
@@ -1836,45 +1908,60 @@ function CatalogView({
   const pathSlug = path.split('/')[2];
   const category = collections.find((c) => c.slug === pathSlug);
   const defaultCategory = categories.find((c) => c.slug === pathSlug);
+  const activeCategory = category || defaultCategory;
   const query =
     typeof window !== 'undefined'
       ? new URLSearchParams(location.search).get('q') || ''
       : '';
+  const isNewArrivals = path === '/collections/new-arrivals';
+  const isBestSellers = path === '/collections/best-sellers';
+  const pageName = path === '/search'
+    ? (query ? `Search: ${query}` : 'Search')
+    : isNewArrivals
+      ? 'New arrivals'
+      : isBestSellers
+        ? 'Best sellers'
+        : activeCategory?.name || pathSlug?.replaceAll('-', ' ') || 'All collections';
+  const story = collectionPageStory(pageName);
   const filtered = useMemo(
     () =>
       catalog.filter(
         (p) =>
-          (!category ||
-            p.category === category.name ||
-            p.collection === category.name ||
-            (defaultCategory && (p.category === defaultCategory.name || p.collection === defaultCategory.name))) &&
+          (!isNewArrivals || p.newArrival === true) &&
+          (!isBestSellers || p.featured === true) &&
+          (!activeCategory ||
+            p.category === activeCategory.name ||
+            p.collection === activeCategory.name) &&
           (query === '' ||
             (p.name + p.category).toLowerCase().includes(query.toLowerCase())),
       ),
-    [category, defaultCategory, query, catalog],
+    [activeCategory, isNewArrivals, isBestSellers, query, catalog],
   );
+  const heroImage = activeCategory?.image || collections[0]?.image || '/collection-store.jpg';
+  const categoryPosition = Math.max(0, collections.findIndex((item) => item.slug === activeCategory?.slug));
+  const relatedCollections = collections.filter((item) => item.slug !== pathSlug).slice(0, 3);
   return (
     <main className="catalog-page">
       <div className="catalog-hero">
-        <p className="eyebrow">Archive / 2026</p>
-        <h1>
-          {path === '/search'
-            ? query
-              ? `Search: ${query}`
-              : 'Search'
-            : category?.name ||
-              defaultCategory?.name ||
-              pathSlug?.replaceAll('-', ' ') ||
-              'All collections'}
-        </h1>
-        <p>
-          {category
-            ? collectionDescription(category.name)
-            : 'Explore the ZYRA collection. Find your fit, colour and next everyday favourite.'}
-        </p>
+        <div className="catalog-hero-copy">
+          <p className="eyebrow">ZYRA / Shop the edit</p>
+          <h1>{pageName}</h1>
+          <p>{story.copy}</p>
+        </div>
+        {path !== '/search' && <div className="catalog-hero-visual" aria-hidden="true">
+          <img src={heroImage} alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
+          <div className="catalog-visual-topline">
+            <span>COLLECTION / {String(categoryPosition + 1).padStart(2, '0')}</span>
+            <span>ZYRA EDIT</span>
+          </div>
+          <div className="catalog-visual-caption">
+            <div><span>{story.eyebrow}</span><strong>{pageName}</strong></div>
+          </div>
+        </div>}
       </div>
       <div className="catalog-count">
-        {filtered.length} pieces
+        <span>{filtered.length} pieces</span>
+        <span>Designed for your rotation</span>
       </div>
       {filtered.length ? (
         <div className="catalog-grid">
@@ -1889,6 +1976,34 @@ function CatalogView({
           <p>Explore the complete archive or check back for upcoming drops.</p>
         </div>
       )}
+      {path !== '/search' && <>
+        <section className="catalog-story" aria-labelledby="catalog-story-title">
+          <div className="catalog-story-copy">
+            <p className="eyebrow">{story.eyebrow}</p>
+            <h2 id="catalog-story-title">{story.heading}</h2>
+            <p>{story.copy}</p>
+          </div>
+          <div className="catalog-story-points">
+            {story.points.map(([title, copy], index) => <article key={title}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div><h3>{title}</h3><p>{copy}</p></div>
+            </article>)}
+          </div>
+        </section>
+        {relatedCollections.length > 0 && <section className="catalog-related" aria-labelledby="related-edits-title">
+          <header>
+            <div><p className="eyebrow">More to explore</p><h2 id="related-edits-title">Switch the mood.</h2></div>
+            <a href="/collections">Shop all <ArrowRight /></a>
+          </header>
+          <div className="catalog-related-grid">
+            {relatedCollections.map((item, index) => <a href={`/collections/${item.slug}`} key={item.slug}>
+              <img src={item.image} alt="" loading="lazy" />
+              <span>EDIT {String(index + 1).padStart(2, '0')}</span>
+              <div><h3>{item.name}</h3><ArrowRight /></div>
+            </a>)}
+          </div>
+        </section>}
+      </>}
     </main>
   );
 }
@@ -2279,9 +2394,10 @@ function OrderSummary({
   );
 }
 
-function ConfirmationView({ token, settings }: { token: string; settings: StoreSettings }) {
+function ConfirmationView({ token, settings, catalog }: { token: string; settings: StoreSettings; catalog: Product[] }) {
   const [order, setOrder] = useState<Order | null>(null),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(true),
+    [copied, setCopied] = useState(false);
   useEffect(() => {
     fetch(`/api/orders?token=${encodeURIComponent(token)}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
@@ -2302,59 +2418,124 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
         </a>
       </main>
     );
+  const paymentLabel = order.payment === 'safepay'
+    ? `Safepay · ${order.paymentStatus === 'PAID' ? 'Paid' : order.paymentStatus === 'PAID_REVIEW_REQUIRED' ? 'Paid — contact support' : 'Awaiting confirmation'}`
+    : order.payment === 'bank' ? 'Bank transfer' : 'Cash on delivery';
+  const copyTrackingId = async () => {
+    try {
+      await navigator.clipboard.writeText(order.number);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = order.number;
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand('copy');
+      field.remove();
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    }
+  };
   return (
-    <main className="confirmation">
-      <div className="confirmation-mark">
-        <Check />
-      </div>
-      <p className="eyebrow">{order.status === 'PENDING' ? 'Order saved · payment pending' : 'Order received'}</p>
-      {order.items.some(i=>i.customDetails) && <p className="cs-kicker">Custom order · made for you</p>}
-      <h1>
-        Thank you.
-        <br />
-        We’ve got it.
-      </h1>
-      <p>
-        Your order reference is <b>{order.number}</b>. Keep it for tracking and support.
-      </p>
-      <div className="confirmation-grid">
+    <main className="order-success-page">
+      <section className="order-success-hero">
+        <div className="order-success-mark"><Check /></div>
+        <p className="eyebrow">{order.items.some(i => i.customDetails) ? 'Custom order confirmed' : 'Order confirmed'}</p>
+        <h1>It’s officially yours.</h1>
+        <p className="order-success-intro">We’ve got the order. Keep this page close while we get your pieces ready.</p>
+        <div className="tracking-id-card">
+          <div><span>Your tracking ID</span><strong>{order.number}</strong></div>
+          <button type="button" onClick={() => void copyTrackingId()} aria-live="polite">
+            {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy ID'}
+          </button>
+        </div>
+        <div className="order-hero-actions">
+          <a className="dark-button" href={`/track-order?order=${encodeURIComponent(order.number)}`}>Track the order <ArrowRight /></a>
+          <a className="text-link" href="/collections">Keep shopping</a>
+        </div>
+      </section>
+
+      <section className="order-slip-section" aria-labelledby="order-slip-title">
+        <header>
+          <div><p className="eyebrow">Your order slip</p><h2 id="order-slip-title">Everything in one place.</h2></div>
+          <p>Save it now. You’ll also use the tracking ID if you contact us about this order.</p>
+        </header>
+        <div className="order-slip-layout">
+          <article className="order-slip" aria-label={`Order slip ${order.number}`}>
+            <div className="order-slip-brand"><strong>ZYRA<sup>®</sup></strong><span>ORDER / CONFIRMED</span></div>
+            <div className="order-slip-code">
+              <span>TRACKING ID</span>
+              <strong>{order.number}</strong>
+              <small>{new Date(order.createdAt).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+            </div>
+            <div className="order-slip-status">
+              <div><span>Status</span><strong>{order.status.toLowerCase().replaceAll('_', ' ')}</strong></div>
+              <div><span>Payment</span><strong>{paymentLabel}</strong></div>
+            </div>
+            <div className="order-slip-items">
+              {order.items.map((item, index) => {
+                const product = catalog.find((entry) => entry.slug === item.slug);
+                return <div className="order-slip-item" key={`${item.slug}-${index}`}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <div><strong>{item.customDetails ? 'Your custom shirt' : product?.name || item.slug.replaceAll('-', ' ')}</strong><small>{item.color} / {item.size} · Qty {item.qty}</small></div>
+                  <b>{money(item.lineTotal)}</b>
+                </div>;
+              })}
+            </div>
+            <dl className="order-slip-totals">
+              <div><dt>Subtotal</dt><dd>{money(order.subtotal)}</dd></div>
+              <div><dt>Delivery</dt><dd>{order.shipping ? money(order.shipping) : 'Free'}</dd></div>
+              <div><dt>Total</dt><dd>{money(order.total)}</dd></div>
+            </dl>
+            <div className="order-slip-delivery">
+              <span>Deliver to</span>
+              <strong>{order.customer.firstName} {order.customer.lastName}</strong>
+              <p>{order.delivery.address}, {order.delivery.city}, {order.delivery.province}{order.delivery.postal ? ` ${order.delivery.postal}` : ''}</p>
+            </div>
+            <footer><span>ZYRA / KARACHI, PK</span><span>KEEP THIS SLIP</span></footer>
+          </article>
+
+          <aside className="order-slip-guide">
+            <p className="eyebrow">Save your copy</p>
+            <h3>Your slip is ready.</h3>
+            <p>Tap below, then choose <b>Save as PDF</b> in the print window. On mobile, use the share or PDF option.</p>
+            <button className="order-download-button" type="button" onClick={() => window.print()}><Download /> Save / print slip</button>
+            <div className="download-mini-guide">
+              <div><span>01</span><p><b>Tap save</b><small>The print window will open.</small></p></div>
+              <div><span>02</span><p><b>Choose PDF</b><small>Select “Save as PDF”.</small></p></div>
+              <div><span>03</span><p><b>Keep the ID</b><small>Use it to track or get help.</small></p></div>
+            </div>
+            {order.payment === 'bank' && <div className="order-payment-note"><b>Bank transfer needed</b><p>{settings.bankTransferInstructions} Use <strong>{order.number}</strong> as the payment reference.</p></div>}
+            {order.payment === 'safepay' && order.paymentStatus !== 'PAID' && <a className="outline-button" href={`/payment-return?order=${encodeURIComponent(token)}`}>Check payment status</a>}
+          </aside>
+        </div>
+      </section>
+
+      {order.items.some(i => i.customDetails) && <section className="order-custom-section">
+        <div><p className="eyebrow">Made for you</p><h2>Your artwork is with us.</h2><p>We’ll use the files and placement choices saved with your order.</p></div>
+        <div>{order.items.filter(i => i.customDetails).map(i => <div className="cs-confirm-design" key={i.slug}><img src={i.customDetails?.image} alt="Your uploaded print" width="100"/><div><b>Your custom shirt</b><p>{i.color} / {i.size} · Qty {i.qty}</p><CustomItemDetails details={i.customDetails}/></div></div>)}</div>
+      </section>}
+
+      <section className="order-next-steps" aria-labelledby="next-steps-title">
+        <header><p className="eyebrow">What happens next</p><h2 id="next-steps-title">From us to you.</h2></header>
         <div>
-          <small>Order number</small>
-          <b>{order.number}</b>
+          <article className="active"><span><Check /></span><small>01</small><h3>Order received</h3><p>Your order is safely in our system.</p></article>
+          <article><span><PackageCheck /></span><small>02</small><h3>Quality checked</h3><p>We inspect and pack every piece.</p></article>
+          <article><span><Truck /></span><small>03</small><h3>On the move</h3><p>Your tracking updates when the courier scans it.</p></article>
+          <article><span><PackageOpen /></span><small>04</small><h3>At your door</h3><p>Receive it, try the fit and make it yours.</p></article>
         </div>
-        <div>
-          <small>Status</small>
-          <b>{order.status}</b>
-        </div>
-        <div>
-          <small>Payment</small>
-          <b>
-            {order.payment === 'safepay' ? `Safepay · ${order.paymentStatus === 'PAID' ? 'Paid' : order.paymentStatus === 'PAID_REVIEW_REQUIRED' ? 'Paid — contact support' : 'Awaiting confirmation'}` : order.payment === 'bank'
-              ? 'Awaiting transfer'
-              : 'Cash on delivery'}
-          </b>
-        </div>
-        <div>
-          <small>Total</small>
-          <b>{money(order.total)}</b>
-        </div>
-      </div>
-      {order.items.filter(i=>i.customDetails).map(i=><div className="cs-confirm-design" key={i.slug}><img src={i.customDetails?.image} alt="Your uploaded print" width="100"/><div><b>Your custom shirt</b><p>{i.color} / {i.size} · Qty {i.qty}</p><CustomItemDetails details={i.customDetails}/></div></div>)}
-      {order.payment === 'bank' && (
-        <div className="bank-note">
-          <b>Bank transfer instructions</b>
-          <p>
-            {settings.bankTransferInstructions} Use {order.number} as your payment reference.
-          </p>
-        </div>
-      )}
-      {order.payment === 'safepay' && order.paymentStatus !== 'PAID' && <a className="outline-button" href={`/payment-return?order=${encodeURIComponent(token)}`}>Check payment status</a>}
-      <a className="dark-button" href="/collections">
-        Continue shopping
-      </a>
-      <a className="text-link" href="/track-order">
-        Track this order <ArrowRight />
-      </a>
+      </section>
+
+      <section className="order-help-strip">
+        <div><p className="eyebrow">Need anything?</p><h2>We’re here after checkout too.</h2></div>
+        <nav aria-label="Order help">
+          <a href="/track-order"><span>Track order</span><ArrowRight /></a>
+          <a href="/pages/shipping"><span>Delivery guide</span><ArrowRight /></a>
+          <a href="/pages/returns"><span>7-day exchange</span><ArrowRight /></a>
+          <a href="/pages/contact"><span>Customer help</span><ArrowRight /></a>
+        </nav>
+      </section>
     </main>
   );
 }
@@ -2711,6 +2892,7 @@ function AdminView({
               <ProductEditor
                 product={editing}
                 collections={collections}
+                products={adminCatalog}
                 onCancel={() => { setEditing(null); setProductFormOpen(false); }}
                 onSaved={async (message) => { await loadAdminData(); setSaved(message); setEditing(null); setProductFormOpen(false); }}
               />
@@ -3190,17 +3372,21 @@ function CollectionNameEditor({
 function ProductEditor({
   product,
   collections,
+  products,
   onCancel,
   onSaved,
 }: {
   product: Product | null;
   collections: Category[];
+  products: Product[];
   onCancel: () => void;
   onSaved: (message: string) => void;
 }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [productImages, setProductImages] = useState(() => [...(product ? getProductImages(product) : []), '', '', ''].slice(0, 4));
+  const categoryOptions = Array.from(new Set([...products.map((entry) => entry.category), ...collections.map((entry) => entry.name)].filter(Boolean))).sort();
+  const collectionOptions = Array.from(new Set(collections.map((entry) => entry.name).filter(Boolean))).sort();
   return (
     <form className="admin-product-form" onSubmit={async (event) => {
       event.preventDefault();
@@ -3248,8 +3434,8 @@ function ProductEditor({
       <div className="form-grid">
         <label>Name<input name="name" required defaultValue={product?.name} /></label>
         <label>URL slug<input name="slug" required pattern="[a-z0-9-]+" defaultValue={product?.slug} placeholder="midnight-tee" /></label>
-        <label>Category<select name="category" defaultValue={product?.category || collections[0]?.name || categories[0].name}>{collections.map((category) => <option key={category.slug}>{category.name}</option>)}</select></label>
-        <label>Collection<input name="collection" required defaultValue={product?.collection || 'After Hours'} /></label>
+        <label>Category<select name="category" required defaultValue={product?.category || categoryOptions[0]}><option value="" disabled>Select a category</option>{categoryOptions.map((name) => <option value={name} key={name}>{name}</option>)}</select><small>Available categories come from your current product catalog.</small></label>
+        <label>Collection<select name="collection" required defaultValue={product?.collection || collectionOptions[0]}><option value="" disabled>Select a collection</option>{collectionOptions.map((name) => <option value={name} key={name}>{name}</option>)}</select><small>Only active Store collections are shown.</small></label>
         <label>Price (PKR)<input name="price" required type="number" min="0" step="1" defaultValue={product ? product.price / 100 : ''} /></label>
         <label>Compare price (PKR)<input name="compareAt" type="number" min="0" step="1" defaultValue={product?.compareAt ? product.compareAt / 100 : ''} /></label>
         <label>Stock<input name="stock" required type="number" min="0" step="1" defaultValue={product?.stock ?? 0} /></label>

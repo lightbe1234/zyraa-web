@@ -50,8 +50,34 @@ export function ActivityPrivacySetting() {
   return <section><h2>Your analytics preference</h2><p>You can turn off activity analytics for this browser at any time. We also respect Do Not Track and Global Privacy Control. Previous opt-outs remain in effect.</p><button className="outline-button" disabled={disabled === null} onClick={() => { try { localStorage.setItem('zyra-analytics-choice', disabled ? 'allow' : 'decline'); setDisabled(!disabled); window.dispatchEvent(new Event('zyra-analytics-change')); setMessage(disabled ? 'Analytics enabled, subject to your browser privacy settings.' : 'Analytics disabled for this browser.'); } catch { setMessage('The preference could not be saved in this browser.'); } }}>{disabled ? 'Enable analytics' : 'Turn off analytics'}</button><p role="status">{message}</p></section>;
 }
 
-type Data = { summary: { visitors: number; views: number; bagAdds: number; checkouts: number }; visitors: { visitor: string; firstSeen: number; lastSeen: number; events: number; device: string }[]; events: { visitor: string; action: string; path: string; created: number }[] };
-const labels: Record<string, string> = { page_view: 'Viewed page', add_to_bag: 'Added to bag', checkout_view: 'Opened checkout' };
+type Data = { summary: { visitors: number; views: number; bagAdds: number; checkouts: number }; visitors: { visitor: string; firstSeen: number; lastSeen: number; events: number; device: string }[]; events: { visitor: string; action: string; path: string; device?: string; created: number }[] };
+function pageName(path: string) {
+  const clean = path.split('?')[0].replace(/^\/+|\/+$/g, '');
+  if (!clean) return 'Home page';
+  if (clean === 'cart') return 'Shopping bag';
+  if (clean === 'checkout') return 'Checkout';
+  if (clean === 'collections') return 'All collections';
+  if (clean === 'customise-your-shirt') return 'Custom shirt studio';
+  const [section, ...parts] = clean.split('/');
+  const name = parts.join(' ').replaceAll('-', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+  if (section === 'products') return name || 'Product page';
+  if (section === 'collections') return `${name || 'Collection'} collection`;
+  if (section === 'pages') return name || 'Information page';
+  return clean.replaceAll('-', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+}
+function activitySentence(event: Data['events'][number]) {
+  const page = pageName(event.path);
+  if (event.action === 'add_to_bag') return `Added ${page} to the bag`;
+  if (event.action === 'checkout_view') return 'Opened checkout and started ordering';
+  if (event.action === 'page_view') return `Viewed ${page}`;
+  return `Interacted with ${page}`;
+}
+function visitorIntent(visitor: string, events: Data['events']) {
+  const own = events.filter(event => event.visitor === visitor);
+  if (own.some(event => event.action === 'checkout_view')) return 'Reached checkout';
+  if (own.some(event => event.action === 'add_to_bag')) return 'Added a product to bag';
+  return `Browsing · last on ${pageName(own[0]?.path || '/')}`;
+}
 export function VisitorDashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState('');
@@ -67,6 +93,6 @@ export function VisitorDashboard() {
     <p>{mode === 'preview' ? 'Admin preview only — these visits are excluded from customer totals.' : 'Customer activity only. No previous browsing history is backfilled.'} Secure database · 30-day retention · no raw IP stored.</p>
     {error && <p role="alert">{error}</p>}{!data && !error && <p>Loading activity…</p>}
     {data && <><div className="stat-grid">{(['visitors', 'views', 'bagAdds', 'checkouts'] as const).map((key, i) => <div key={key}><small>{['Visitor sessions', 'Page views', 'Bag additions', 'Checkout visits'][i]}</small><b>{data.summary[key] || 0}</b></div>)}</div>
-    {!data.visitors.length ? <p className="visitor-empty">No recorded visits yet. Open the store in a private browser window to test a customer visit. Browser privacy settings and saved opt-outs are respected.</p> : <div className="visitor-columns"><div className="visitor-list"><h3>Recent visitors</h3>{data.visitors.map(v => <button key={v.visitor} className={selected === v.visitor ? 'selected' : ''} onClick={() => setSelected(v.visitor)}><b>Visitor {v.visitor.slice(0, 8)}</b><span>{v.device} · {v.events} activities</span><small>Last seen {new Date(v.lastSeen).toLocaleString()}</small></button>)}</div><div><h3>{selected ? `Visitor ${selected.slice(0, 8)}` : 'Recent activity'}</h3>{selected && <button onClick={() => setSelected('')}>Show all visitors</button>}<p>Showing the latest 1,000 recorded events.</p><ol className="visitor-timeline">{data.events.filter(e => !selected || e.visitor === selected).map((e, i) => <li key={`${e.created}-${i}`}><b>{labels[e.action] || e.action}</b><span>{e.path}</span><small>{new Date(e.created).toLocaleString()} · {e.visitor.slice(0, 8)}</small></li>)}</ol></div></div>}</>}
+    {!data.visitors.length ? <p className="visitor-empty">No recorded visits yet. Open the store in a private browser window to test a customer visit. Browser privacy settings and saved opt-outs are respected.</p> : <div className="visitor-columns"><div className="visitor-list"><h3>Recent visitors</h3>{data.visitors.map((v,index) => <button key={v.visitor} className={selected === v.visitor ? 'selected' : ''} onClick={() => setSelected(v.visitor)}><b>Visitor {index+1}</b><span>{visitorIntent(v.visitor,data.events)}</span><small>{v.device} · {v.events} actions · last seen {new Date(v.lastSeen).toLocaleString('en-PK')}</small></button>)}</div><div><h3>{selected ? `What this visitor did` : 'Latest customer actions'}</h3>{selected && <button onClick={() => setSelected('')}>Show all visitors</button>}<p>Read each visit in order—newest activity appears first.</p><ol className="visitor-timeline">{data.events.filter(e => !selected || e.visitor === selected).map((e, i) => <li key={`${e.created}-${i}`}><b>{activitySentence(e)}</b><span>{pageName(e.path)}</span><small>{new Date(e.created).toLocaleString('en-PK')} · visitor {e.visitor.slice(0, 8)}</small></li>)}</ol></div></div>}</>}
   </section>;
 }

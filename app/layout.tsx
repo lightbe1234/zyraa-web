@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Manrope, Space_Grotesk } from 'next/font/google';
 import './storefront.css';
 import './collection-discovery.css';
 import './brand-polish.css';
@@ -11,10 +11,15 @@ import './visitor-activity.css';
 import './checkout-polish.css';
 import './payment-setup.css';
 import './custom-shirt-studio.css';
+import './typography-polish.css';
+import './category-pages.css';
+import './order-confirmation.css';
+import './premium-footer.css';
 import { ActivityConsent } from './visitor-activity';
 import { absoluteUrl, siteOrigin, serializeSchema } from '@/lib/seo';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
+const manrope = Manrope({ variable: '--font-body', subsets: ['latin'], display: 'swap' });
+const spaceGrotesk = Space_Grotesk({ variable: '--font-display', subsets: ['latin'], display: 'swap' });
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
@@ -56,7 +61,7 @@ export default function RootLayout({
   };
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${manrope.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}>
         {children}
         <ActivityConsent />
         <script
