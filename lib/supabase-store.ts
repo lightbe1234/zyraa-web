@@ -1,13 +1,15 @@
 import type { Category, Product } from './catalog';
 import type { HomeCollectionCard } from './home-collection-cards';
 import { getSupabaseAdmin } from './supabase-server';
+import { signedDetails } from './custom-shirts-server';
+import type { CustomDetails } from './custom-shirts';
 
 export type StoreOrder = {
   token: string;
   number: string;
   customer: { firstName: string; lastName: string; email: string; phone: string };
   delivery: { address: string; city: string; province: string; postal: string; note: string };
-  items: Array<{ slug: string; size: string; color: string; qty: number; unitPrice: number; lineTotal: number }>;
+  items: Array<{ slug: string; size: string; color: string; qty: number; unitPrice: number; lineTotal: number; customDetails?: CustomDetails }>;
   subtotal: number;
   shipping: number;
   total: number;
@@ -79,6 +81,20 @@ export async function updateCollection(slug: string, name: string, image: string
   if (error) throw new Error(error.message);
 }
 
+export async function createCollection(slug: string, name: string, image: string, actorEmail: string) {
+  const { error } = await getSupabaseAdmin().rpc('admin_create_collection', {
+    p_slug: slug, p_name: name, p_image: image, p_actor_email: actorEmail,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function archiveCollection(slug: string, actorEmail: string) {
+  const { error } = await getSupabaseAdmin().rpc('admin_archive_collection', {
+    p_slug: slug, p_actor_email: actorEmail,
+  });
+  if (error) throw new Error(error.message);
+}
+
 function productFromRow(row: Record<string, unknown>): Product {
   const storedImages = Array.isArray(row.images) ? row.images.map(String).filter(Boolean) : [];
   const images = storedImages.length ? storedImages : [String(row.image), String(row.alternate)].filter(Boolean);
@@ -91,11 +107,12 @@ function productFromRow(row: Record<string, unknown>): Product {
   };
 }
 
-function orderFromRow(row: Record<string, unknown>): StoreOrder {
-  const items = (row.order_items as Array<Record<string, unknown>> || []).map((item) => ({
+async function orderFromRow(row: Record<string, unknown>): Promise<StoreOrder> {
+  const items = await Promise.all((row.order_items as Array<Record<string, unknown>> || []).map(async (item) => ({
     slug: String(item.product_slug), size: String(item.size), color: String(item.color), qty: Number(item.quantity),
     unitPrice: Number(item.unit_price), lineTotal: Number(item.line_total),
-  }));
+    customDetails: item.custom_details ? await signedDetails(item.custom_details as CustomDetails) : undefined,
+  })));
   return {
     token: String(row.public_token), number: String(row.order_number),
     customer: { firstName: String(row.first_name), lastName: String(row.last_name), email: String(row.email), phone: String(row.phone) },
@@ -108,7 +125,7 @@ function orderFromRow(row: Record<string, unknown>): StoreOrder {
 const orderSelect = '*, order_items(*)';
 
 export async function getCatalog({ includeArchived = false } = {}) {
-  let query = getSupabaseAdmin().from('products').select('*').order('created_at', { ascending: true });
+  let query = getSupabaseAdmin().from('products').select('*').not('slug', 'like', 'custom-%').order('created_at', { ascending: true });
   if (!includeArchived) query = query.eq('active', true);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -151,7 +168,7 @@ export async function createOrder(input: {
 export async function getOrders() {
   const { data, error } = await getSupabaseAdmin().from('orders').select(orderSelect).order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data || []).map((row) => orderFromRow(row));
+  return Promise.all((data || []).map((row) => orderFromRow(row)));
 }
 
 export async function findOrderByToken(token: string) {

@@ -2686,6 +2686,21 @@ button:focus-visible {
   background: var(--paper);
   border: 1px solid var(--line);
 }
+.admin-collection-create {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.admin-collection-create .form-grid {
+  margin-top: 0;
+}
+.admin-collection-create .admin-image-upload {
+  grid-column: 1 / -1;
+}
+.admin-collection-create .admin-form-actions {
+  margin-top: 16px;
+}
 .admin-home-collection-manager {
   padding: 24px;
 }
@@ -2836,6 +2851,16 @@ button:focus-visible {
 }
 .admin-collection-row .outline-button svg {
   width: 13px;
+}
+.admin-danger-button {
+  color: #a32626;
+  border-color: #cfa5a0 !important;
+  background: #fff8f7 !important;
+}
+.admin-danger-button:hover:not(:disabled) {
+  color: #fff;
+  border-color: #a32626 !important;
+  background: #a32626 !important;
 }
 .admin-collection-row.editing .admin-image-upload {
   grid-column: 1 / -1;

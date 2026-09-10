@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 export function activityPath(value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 180) return null;
-  if (['/', '/collections', '/checkout'].includes(value)) return value;
+  if (['/', '/collections', '/checkout', '/customise-your-shirt'].includes(value)) return value;
   return /^\/(products|collections)\/[a-z0-9-]{1,100}$/.test(value) ? value : null;
 }
 

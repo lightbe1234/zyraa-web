@@ -10,6 +10,7 @@ import './product-detail.css';
 import './visitor-activity.css';
 import './checkout-polish.css';
 import './payment-setup.css';
+import './custom-shirt-studio.css';
 import { ActivityConsent } from './visitor-activity';
 import { absoluteUrl, siteOrigin, serializeSchema } from '@/lib/seo';
 

@@ -44,6 +44,8 @@ import { VisitorDashboard, trackActivity, trackPurchase } from './visitor-activi
 import { PaymentSetup } from './payment-setup';
 import { checkoutAttempt } from '@/lib/checkout-attempt';
 import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
+import { CustomShirtBanner, CustomShirtStudio, CustomShirtAdmin, CustomItemDetails, CustomArtworkLinks } from './custom-shirt-studio';
+import type { CustomDetails } from '@/lib/custom-shirts';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -51,7 +53,7 @@ type Order = {
   number: string;
   customer: { firstName: string; lastName: string; email: string; phone: string };
   delivery: { address: string; city: string; province: string; postal: string; note: string };
-  items: Array<CartItem & { unitPrice: number; lineTotal: number }>;
+  items: Array<CartItem & { unitPrice: number; lineTotal: number; customDetails?: CustomDetails }>;
   subtotal: number;
   shipping: number;
   total: number;
@@ -152,15 +154,10 @@ export default function StorefrontApp({
     [notice, setNotice] = useState(0),
     [toast, setToast] = useState('');
 
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('zyra-community-reviews');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return seedReviews;
-  });
+  const [reviews, setReviews] = useState<Review[]>(seedReviews);
+  useEffect(() => {
+    try { const saved = JSON.parse(localStorage.getItem('zyra-community-reviews') || 'null'); if (Array.isArray(saved)) setReviews(saved); } catch {}
+  }, []);
 
   const addReview = (newReview: Review) => {
     setReviews((prev) => {
@@ -184,15 +181,26 @@ export default function StorefrontApp({
   const [collectionsList, setCollectionsList] = useState<Category[]>(initialCollections?.length ? initialCollections : categories);
 
   const countdown = useCountdown();
+  const [designsLoading, setDesignsLoading] = useState(false);
   useEffect(() => {
     try {
-      setCart(JSON.parse(localStorage.getItem('zyra-cart') || '[]'));
+      const saved: CartItem[] = JSON.parse(localStorage.getItem('zyra-cart') || '[]');
+      if (Array.isArray(saved)) {
+        setCart(saved);
+        const customSlugs = [...new Set(saved.filter(i => i.slug?.startsWith('custom-')).map(i=>i.slug))];
+        if (customSlugs.length) {
+          setDesignsLoading(true);
+          fetch('/api/custom-shirts/designs?' + customSlugs.map(s=>'slug='+encodeURIComponent(s)).join('&'))
+            .then(async r => { if (!r.ok) throw new Error('Your saved designs could not load. Refresh before checking out.'); const p: Product[] = await r.json(); setCatalog(c=>[...c.filter(x=>!customSlugs.includes(x.slug)),...p]); if(p.length!==customSlugs.length) setToast('A custom design has expired. Remove it from your bag and save it again in the studio.'); })
+            .catch(e=>setToast(e.message)).finally(()=>setDesignsLoading(false));
+        }
+      }
     } catch {}
     setReady(true);
     if (!initialCatalog?.length) {
       fetch('/api/products')
         .then((response) => (response.ok ? response.json() : Promise.reject()))
-        .then((value: Product[]) => setCatalog(value))
+        .then((value: Product[]) => setCatalog(current => [...value, ...current.filter(p => p.slug.startsWith('custom-'))]))
         .catch(() => setToast('Live catalog is temporarily unavailable.'));
     }
     fetch('/api/store-config')
@@ -298,7 +306,7 @@ export default function StorefrontApp({
       )}
       {path === '/' ? (
         <Home
-          catalog={catalog}
+          catalog={catalog.filter(p=>!p.slug.startsWith('custom-'))}
           sections={homeSections}
           settings={storeSettings}
           reviews={reviews}
@@ -307,16 +315,22 @@ export default function StorefrontApp({
           collections={collectionsList}
           homeCollectionCards={homeCollectionCards}
         />
+      ) : path === '/customise-your-shirt' ? (
+        <CustomShirtStudio onAdd={(product, size, colour) => {
+          const next = [...cart, { slug: product.slug, size, color: colour, qty: 1 }];
+          localStorage.setItem('zyra-cart', JSON.stringify(next));
+          setCatalog(c=>[...c,product]); setCart(next); location.assign('/cart');
+        }} />
       ) : path.startsWith('/products/') ? (
         <ProductView slug={path.split('/')[2]} add={add} catalog={catalog} settings={storeSettings} cart={cart} ready={ready} />
       ) : path === '/collections' ||
         path.startsWith('/collections/') ||
         path === '/search' ? (
-        <CatalogView path={path} catalog={catalog} collections={collectionsList} />
+        <CatalogView path={path} catalog={catalog.filter(p=>!p.slug.startsWith('custom-'))} collections={collectionsList} />
       ) : path === '/cart' ? (
         <CartView cart={cart} subtotal={subtotal} update={update} catalog={catalog} settings={storeSettings} />
       ) : path === '/checkout' ? (
-        <CheckoutView
+        designsLoading ? <main className="checkout-page"><p role="status">Loading your saved designs…</p></main> : <CheckoutView
           cart={cart}
           subtotal={subtotal}
           catalog={catalog}
@@ -610,6 +624,7 @@ function CartPanel({
                       <small>
                         {item.color} / {item.size} · Qty {item.qty}
                       </small>
+                      <CustomItemDetails details={p.customDetails} />
                       <strong>{money(p.price * item.qty)}</strong>
                     </span>
                   </div>
@@ -1634,13 +1649,19 @@ function Home({
   homeCollectionCards?: HomeCollectionCard[];
 }) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
+  const media = (url: string) => {
+    const marker = '/storage/v1/object/public/product-images/';
+    const at = url.indexOf(marker);
+    return at < 0 ? url : `/api/store-media?path=${encodeURIComponent(url.slice(at + marker.length))}`;
+  };
   return (
     <main className="home-page">
       {enabled('campaign-hero') && (
       <section className="hero">
         <img
-          src={settings.heroImage || defaultStoreSettings.heroImage}
+          src={media(settings.heroImage || defaultStoreSettings.heroImage)}
           alt="ZYRA campaign banner"
+          onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = defaultStoreSettings.heroImage; }}
         />
         <div className="hero-shade" />
         <div className="hero-copy">
@@ -1688,7 +1709,7 @@ function Home({
           .sort((left, right) => left.sortOrder - right.sortOrder)
           .map((card) => (
             <a href={`/collections/${card.collectionSlug}`} key={card.key}>
-              <img src={card.image} alt={`${card.title} collection`} />
+              <img src={media(card.image)} alt={`${card.title} collection`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-studio.jpg'; }} />
               <div>
                 <p className="eyebrow">{card.eyebrow}</p>
                 <h2>{card.title}</h2>
@@ -1705,23 +1726,7 @@ function Home({
           (p) => p.category === 'Bottoms' || p.category === 'Essentials',
         )}
       />
-      <section className="campaign-banner">
-        <img
-          src="/collection-studio.jpg"
-          alt="Independent clothing studio interior"
-        />
-        <div>
-          <p className="eyebrow">Everyday essentials</p>
-          <h2>
-            Good style.
-            <br />
-            Great fabric.
-          </h2>
-          <a className="light-button" href="/collections/essentials">
-            Shop essentials <span>↗</span>
-          </a>
-        </div>
-      </section>
+      <CustomShirtBanner />
       {enabled('collection-grid') && <section className="section-shell collection-discovery">
         <div className="section-heading">
           <div>
@@ -1734,7 +1739,7 @@ function Home({
           {collections.map((c, index) => (
             <a href={`/collections/${c.slug}`} key={c.slug}>
               <div className="collection-visual">
-                <img src={c.image} alt="" loading="lazy" />
+                <img src={media(c.image)} alt="" loading="lazy" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
                 <div className="collection-index" aria-hidden="true">ZYRA / {String(index + 1).padStart(2, '0')}</div>
                 <div className="collection-explore" aria-hidden="true">Explore collection <ArrowRight /></div>
               </div>
@@ -1926,18 +1931,19 @@ function CartView({
           <section className="bag-lines">
             {cart.map((item, i) => {
               const p = catalog.find((product) => product.slug === item.slug);
-              if (!p) return null;
+              if (!p) return <article key={item.slug}><div><h2>Saved item unavailable</h2><p>Your design may have expired. Save it again in the studio.</p><button className="remove" onClick={()=>update(i,0)}>Remove item</button></div></article>;
               return (
                 <article key={`${item.slug}${i}`}>
                   <img src={p.image} alt={p.name} />
                   <div>
                     <p className="eyebrow">{p.category}</p>
                     <h2>
-                      <a href={`/products/${p.slug}`}>{p.name}</a>
+                      <a href={p.customDetails ? '/customise-your-shirt' : `/products/${p.slug}`}>{p.name}</a>
                     </h2>
                     <small>
                       {item.color} / {item.size}
                     </small>
+                    <CustomItemDetails details={p.customDetails} />
                     <div className="quantity">
                       <button onClick={() => update(i, item.qty - 1)}>
                         <Minus />
@@ -2022,6 +2028,7 @@ function CheckoutView({
       setError('Your bag is empty.');
       return;
     }
+    if (cart.some(i=>!catalog.some(p=>p.slug===i.slug))) { setError('An item is unavailable. Return to your bag to remove it or save your custom design again.'); return; }
     setBusy(true);
     setError('');
     const data = new FormData(e.currentTarget);
@@ -2248,6 +2255,7 @@ function OrderSummary({
               <small>
                 {item.color} / {item.size}
               </small>
+              <CustomItemDetails details={p.customDetails} />
             </p>
             <strong>{money(p.price * item.qty)}</strong>
           </div>
@@ -2300,6 +2308,7 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
         <Check />
       </div>
       <p className="eyebrow">{order.status === 'PENDING' ? 'Order saved · payment pending' : 'Order received'}</p>
+      {order.items.some(i=>i.customDetails) && <p className="cs-kicker">Custom order · made for you</p>}
       <h1>
         Thank you.
         <br />
@@ -2330,6 +2339,7 @@ function ConfirmationView({ token, settings }: { token: string; settings: StoreS
           <b>{money(order.total)}</b>
         </div>
       </div>
+      {order.items.filter(i=>i.customDetails).map(i=><div className="cs-confirm-design" key={i.slug}><img src={i.customDetails?.image} alt="Your uploaded print" width="100"/><div><b>Your custom shirt</b><p>{i.color} / {i.size} · Qty {i.qty}</p><CustomItemDetails details={i.customDetails}/></div></div>)}
       {order.payment === 'bank' && (
         <div className="bank-note">
           <b>Bank transfer instructions</b>
@@ -2613,7 +2623,7 @@ function AdminView({
           ZYRA<span>®</span>
         </a>
         <p className="eyebrow">Commerce OS</p>
-        {['dashboard', 'payments', 'visitors', 'products', 'orders', 'reviews', 'content', 'settings'].map((x) => (
+        {['dashboard', 'payments', 'visitors', 'products', 'custom shirts', 'orders', 'reviews', 'content', 'settings'].map((x) => (
           <button
             key={x}
             className={tab === x ? 'active' : ''}
@@ -2644,6 +2654,8 @@ function AdminView({
         </header>
         {tab === 'visitors' && <VisitorDashboard />}
         {tab === 'payments' && <PaymentSetup />}
+        {tab === 'custom shirts' && <CustomShirtAdmin viewOrders={()=>setTab('custom orders')} />}
+        {tab === 'custom orders' && <><button className="outline-button" onClick={()=>setTab('custom shirts')}>Back to shirt studio</button><AdminOrders orders={orders.filter(o=>o.items.some(i=>i.customDetails))} onStatus={updateOrder} onSelect={setSelectedOrder}/></>}
         {tab === 'dashboard' && (
           <>
             <div className="stat-grid">
@@ -3028,6 +3040,10 @@ function CollectionNameEditor({
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [image, setImage] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newSlug, setNewSlug] = useState('');
+  const [newImage, setNewImage] = useState('');
   const [busy, setBusy] = useState(false);
 
   const startEditing = (collection: Category) => {
@@ -3066,14 +3082,68 @@ function CollectionNameEditor({
     }
   };
 
+  const create = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextName = newName.trim();
+    const nextSlug = newSlug.trim().toLowerCase();
+    if (!nextName || !nextSlug || !newImage) {
+      onError('Collection name, URL slug and cover image are required.');
+      return;
+    }
+    setBusy(true);
+    onError('');
+    try {
+      const response = await fetch('/api/admin/collections', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: nextSlug, name: nextName, image: newImage }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Collection could not be created.');
+      await onSaved(result, `${nextName} collection added.`);
+      setCreateOpen(false); setNewName(''); setNewSlug(''); setNewImage('');
+    } catch (createError) {
+      onError(createError instanceof Error ? createError.message : 'Collection could not be created.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (collection: Category) => {
+    const message = `Delete “${collection.name}” from the storefront? Its products and past orders will be kept, but linked homepage cards will be hidden.`;
+    if (!window.confirm(message)) return;
+    setBusy(true);
+    onError('');
+    try {
+      const response = await fetch('/api/admin/collections', {
+        method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: collection.slug }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Collection could not be deleted.');
+      await onSaved(result, `${collection.name} removed from the storefront.`);
+    } catch (removeError) {
+      onError(removeError instanceof Error ? removeError.message : 'Collection could not be deleted.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="admin-collection-manager">
       <div className="admin-section-head">
         <div>
           <h2>Store collections</h2>
-          <p>Rename a collection here. Its products, navigation and storefront heading update together.</p>
+          <p>Create, update or remove a storefront collection. Removing a collection keeps its products and order history safe.</p>
         </div>
+        <button type="button" className="dark-button" onClick={() => { setCreateOpen(true); onError(''); }}><Plus /> Add collection</button>
       </div>
+      {createOpen && <form className="admin-collection-create" onSubmit={create}>
+        <div className="form-grid">
+          <label>Collection name<input required maxLength={80} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Summer staples" /></label>
+          <label>URL slug<input required pattern="[a-z0-9-]+" value={newSlug} onChange={(event) => setNewSlug(event.target.value.toLowerCase())} placeholder="summer-staples" /></label>
+          <ImageUploader label="Collection cover image" value={newImage} onChange={setNewImage} onError={onError} scope="collection" />
+        </div>
+        <div className="admin-form-actions"><button type="button" className="outline-button" disabled={busy} onClick={() => setCreateOpen(false)}>Cancel</button><button className="dark-button" disabled={busy}>{busy ? 'Adding…' : 'Add collection'}</button></div>
+      </form>}
       <div className="admin-collection-list">
         {collections.map((collection) => (
           <div className={`admin-collection-row ${editingSlug === collection.slug ? 'editing' : ''}`} key={collection.slug}>
@@ -3104,7 +3174,10 @@ function CollectionNameEditor({
                 <button disabled={busy} onClick={() => setEditingSlug(null)}>Cancel</button>
               </span>
             ) : (
-              <button className="outline-button" onClick={() => startEditing(collection)}><Pencil /> Edit</button>
+              <span className="admin-actions">
+                <button className="outline-button" onClick={() => startEditing(collection)}><Pencil /> Edit</button>
+                <button className="admin-danger-button" disabled={busy} onClick={() => void remove(collection)}><Trash2 /> Delete</button>
+              </span>
             )}
             {editingSlug === collection.slug && <ImageUploader label="Collection cover image" value={image} onChange={setImage} onError={onError} scope="collection" />}
           </div>
@@ -3288,7 +3361,7 @@ function OrderDetail({ order, onClose, onStatus, catalog }: { order: Order; onCl
     <div className="order-detail-status"><span className="status">{order.status.replaceAll('_', ' ')}</span><select value={order.status} onChange={(event) => onStatus(order, event.target.value)}><option value={order.status}>{order.status.replaceAll('_', ' ')}</option>{statusFlow[order.status].map((status) => <option value={status} key={status}>{status.replaceAll('_', ' ')}</option>)}</select></div>
     <section><p className="eyebrow">Customer</p><h3>{order.customer.firstName} {order.customer.lastName}</h3><a href={`mailto:${order.customer.email}`}>{order.customer.email}</a><a href={`tel:${order.customer.phone}`}>{order.customer.phone}</a></section>
     <section><p className="eyebrow">Deliver to</p><p>{order.delivery.address}<br />{order.delivery.city}, {order.delivery.province} {order.delivery.postal}</p>{order.delivery.note && <small>Note: {order.delivery.note}</small>}</section>
-    <section><p className="eyebrow">Items</p>{order.items.map((item, index) => { const product = catalog.find((entry) => entry.slug === item.slug); return <div className="order-detail-line" key={`${item.slug}-${index}`}><img src={product?.image || '/product-tee.jpg'} alt="" /><span><b>{product?.name || item.slug}</b><small>{item.color} / {item.size} · Qty {item.qty}</small></span><strong>{money(item.lineTotal)}</strong></div>; })}</section>
+    <section><p className="eyebrow">{order.items.some(i=>i.customDetails)?'Custom order · design details':'Items'}</p>{order.items.map((item, index) => { const product = catalog.find((entry) => entry.slug === item.slug); return <div className="order-detail-line" key={`${item.slug}-${index}`}><img src={item.customDetails?.image || product?.image || '/product-tee.jpg'} alt={item.customDetails?'Customer artwork':''} /><span><b>{item.customDetails?'Custom shirt':product?.name || item.slug}</b><small>{item.color} / {item.size} · Qty {item.qty}</small><CustomItemDetails details={item.customDetails}/><CustomArtworkLinks details={item.customDetails}/></span><strong>{money(item.lineTotal)}</strong></div>; })}</section>
     <dl><div><dt>Subtotal</dt><dd>{money(order.subtotal)}</dd></div><div><dt>Shipping</dt><dd>{order.shipping ? money(order.shipping) : 'Free'}</dd></div><div className="total"><dt>Total</dt><dd>{money(order.total)}</dd></div></dl>
   </aside></div>;
 }

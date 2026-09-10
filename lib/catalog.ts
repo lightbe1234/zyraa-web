@@ -1,4 +1,5 @@
 export type Product = {
+  customDetails?: import('./custom-shirts').CustomDetails;
   slug: string;
   name: string;
   category: string;

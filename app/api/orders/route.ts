@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     return Response.json(order, { status: 201 });
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'INVALID_REQUEST';
+    if (raw.includes('CUSTOM_DESIGN_EXPIRED')) return Response.json({ error: 'Your saved design has expired. Please open the shirt studio and save it again.' }, { status: 400 });
     const known = ['INVALID_ORIGIN','INVALID_ITEMS','INVALID_PAYMENT','INVALID_CUSTOMER','INVALID_DELIVERY','INVALID_QUANTITY','PRODUCT_NOT_FOUND','INVALID_VARIANT','INSUFFICIENT_STOCK'];
     const message = known.find((code) => raw.includes(code)) || 'Order could not be placed.';
     return Response.json({ error: message }, { status: message === 'INVALID_ORIGIN' ? 403 : 400 });

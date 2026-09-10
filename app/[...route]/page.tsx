@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata({ params }: { params: Promise<{ route: string[] }> }) {
   const { route } = await params;
   const path = `/${route.join('/')}`;
+  if (path === '/customise-your-shirt') return pageMetadata('Customise Your Shirt', 'Choose your shirt colour and fabric, upload your artwork and make a custom ZYRA shirt.', path);
   const { catalog, collections, available } = await readSeoCatalog();
   if (route[0] === 'products' && route.length === 2) {
     const product = catalog.find(p => p.slug === route[1]);
@@ -39,7 +40,7 @@ export default async function CatchAll({
   const product = route[0] === 'products' && route.length === 2 ? seoData.catalog.find(p => p.slug === route[1]) : undefined;
   const collection = seoData.collections.find(c => c.slug === route[1]);
   const publicHelp = route[0] === 'pages' && route.length === 2 && helpSeo[route[1]];
-  const utility = ['cart', 'checkout', 'search', 'track-order', 'account'].includes(route[0]) && route.length === 1 || route[0] === 'admin' || route[0] === 'order-confirmation';
+  const utility = ['cart', 'checkout', 'search', 'track-order', 'account', 'customise-your-shirt'].includes(route[0]) && route.length === 1 || route[0] === 'admin' || route[0] === 'order-confirmation';
   if (!product && !publicHelp && !utility && !(route[0] === 'collections' && (route.length === 1 || route.length === 2 && collection))) notFound();
   let initialCatalog = seededProducts;
   let initialSettings: StoreSettings | undefined;
