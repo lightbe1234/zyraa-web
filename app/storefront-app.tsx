@@ -1688,7 +1688,7 @@ function Home({
           <div>
             <p className="eyebrow">ZYRA / EST. 2023</p>
             <h2>All the trends.<br />One destination.</h2>
-            <p className="manifesto-copy">The trends you love, with fabric quality you can feel. From graphic tees to everyday essentials, find your next look at ZYRA.</p>
+            <p className="manifesto-copy">Your next look. Quality you can feel.</p>
         </div>
         <div className="manifesto-minimal-badges" aria-label="Store assurances">
           <span><i className="manifesto-icon-wrap"><CheckCircle2 aria-hidden="true" /></i> Quality fabrics</span>

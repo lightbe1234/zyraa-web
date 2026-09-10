@@ -55,10 +55,26 @@
   .home-page .trust-card:nth-child(n+3) { border-top: 1px solid var(--line); }
 }
 .home-page .section-description { max-width: 54ch; line-height: 1.65; }
-.home-page .manifesto-copy { max-width: 48ch; font-size: clamp(16px, 1.5vw, 20px); line-height: 1.65; font-weight: 400; }
+.home-page .manifesto-copy { max-width: 38ch; font-size: clamp(14px, 1.2vw, 17px); line-height: 1.6; font-weight: 400; color: #aaa99f; margin-top: 20px; }
 .home-page .manifesto-minimal-badges { gap: 12px; }
 .home-page .manifesto-minimal-badges > span { font-size: 12px; letter-spacing: .035em; line-height: 1.5; }
 .home-page .manifesto-icon-wrap svg { width: 20px; height: 20px; stroke-width: 1.7; }
+.home-page > .manifesto { padding-block: clamp(40px, 5vw, 68px); background: radial-gradient(ellipse at 100% 0%, #292e222e, transparent 65%), #11120f; border-block: 1px solid #ffffff13; }
+.home-page .manifesto-minimal { align-items: center; gap: 32px; }
+.home-page .manifesto h2 { font-size: clamp(30px, 4.2vw, 58px); line-height: 1.06; letter-spacing: -.045em; margin: 18px 0 0; }
+.home-page .manifesto .eyebrow { font-size: 10px; letter-spacing: .16em; margin: 0; color: #929688; }
+.home-page .manifesto-minimal-badges > span { min-width: 180px; padding: 14px 16px; border-color: #ffffff1c; border-radius: 8px; background: #ffffff03; font-size: 11px; text-transform: none; letter-spacing: .01em; }
+.home-page .manifesto-icon-wrap { width: 30px; height: 30px; flex-basis: 30px; background: #d5ddbc; }
+.home-page .manifesto-icon-wrap::after { display: none; }
+.home-page .manifesto-minimal-badges > span:hover { background: #ffffff08; border-color: #d5ddbc70; }
+@media (max-width: 760px) {
+  .home-page .manifesto-minimal { align-items: flex-start; gap: 26px; }
+  .home-page .manifesto h2 { font-size: clamp(29px, 8.5vw, 48px); }
+  .home-page .manifesto-minimal-badges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .home-page .manifesto-minimal-badges > span { min-width: 0; padding: 12px 10px; gap: 8px; font-size: 10px; }
+  .home-page .manifesto-icon-wrap { width: 26px; height: 26px; flex-basis: 26px; }
+  .home-page .manifesto-icon-wrap svg { width: 17px; height: 17px; }
+}
 .home-page .trust-heading { gap: 12px; }
 .home-page .trust-heading h2 { font-size: clamp(28px, 3.2vw, 44px); line-height: 1.1; }
 .home-page .trust-live { font-family: var(--font-geist-sans), sans-serif; font-size: 13px; letter-spacing: 0; text-transform: none; line-height: 1.5; }
