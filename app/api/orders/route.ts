@@ -1,6 +1,7 @@
 import { createOrder, findOrderByContact, findOrderByToken } from '@/lib/supabase-store';
 import { assertSameOrigin, consumeRateLimit } from '@/lib/security';
 import { safepayReady } from '@/lib/safepay';
+import { sendOrderPlacedEmail } from '@/lib/order-email';
 
 export const runtime = 'nodejs';
 
@@ -59,6 +60,14 @@ export async function POST(request: Request) {
       payment: body.payment,
       idempotencyKey: key,
     });
+    try {
+      const notification = await sendOrderPlacedEmail(order);
+      if (!notification.sent && notification.reason === 'not-configured') {
+        console.warn('Order email notification is not configured.');
+      }
+    } catch {
+      console.error('Order email notification could not be sent.');
+    }
     return Response.json(order, { status: 201 });
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'INVALID_REQUEST';
