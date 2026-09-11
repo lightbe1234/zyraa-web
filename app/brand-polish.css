@@ -18,23 +18,25 @@
 }
 @media (prefers-reduced-motion: reduce) { .footer-service-icons i { transition: none; } }
 .home-page .hero-copy { top: calc(clamp(46px, 8vh, 84px) + 5rem); }
-.home-page .shopping-assurances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 22px clamp(16px, 4vw, 64px); }
-.home-page .shopping-assurances > * { min-width: 0; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 0 14px; }
+.home-page .shopping-assurances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 12px clamp(14px, 3vw, 44px); background: #f3f1ea; }
+.home-page .shopping-assurances > * { min-width: 0; display: flex; justify-content: center; align-items: center; gap: 10px; padding: 0 14px; }
 .home-page .shopping-assurances > * + * { border-left: 1px solid var(--line); }
-.home-page .assurance-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; background: #e8edce; border-radius: 50%; color: var(--ink); transition: background 200ms, transform 200ms; }
-.home-page .assurance-icon svg { width: 21px; height: 21px; stroke-width: 1.7; }
-.home-page .shopping-assurances > * > span { display: flex; flex-direction: column; gap: 5px; }
-.home-page .shopping-assurances strong { color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.3; }
-.home-page .shopping-assurances small { display: flex; align-items: center; gap: 3px; font-size: 12px; line-height: 1.4; }
+.home-page .assurance-icon { width: 34px; height: 34px; flex: 0 0 34px; display: grid; place-items: center; background: #e5ead0; border: 1px solid #dce2c2; border-radius: 10px; color: var(--ink); transition: background 200ms, transform 200ms; }
+.home-page .assurance-icon svg { width: 17px; height: 17px; stroke-width: 1.7; }
+.home-page .shopping-assurances > * > span { display: flex; flex-direction: column; gap: 2px; }
+.home-page .shopping-assurances strong { color: var(--ink); font-size: 13px; font-weight: 650; line-height: 1.25; letter-spacing: -.01em; }
+.home-page .shopping-assurances small { display: flex; align-items: center; gap: 3px; font-size: 10px; line-height: 1.35; color: #716f68; }
 .home-page .shopping-assurances a:hover .assurance-icon { background: #d4eb85; transform: translateY(-2px); }
 .home-page .shopping-assurances a:focus-visible { outline: 2px solid var(--ink); outline-offset: 5px; }
 @media (max-width: 600px) {
   .home-page .hero-copy { top: calc(44px + 5rem); }
-  .home-page .shopping-assurances { padding: 18px 8px; }
-  .home-page .shopping-assurances > * { flex-direction: column; text-align: center; padding: 0 6px; gap: 9px; }
+  .home-page .shopping-assurances { padding: 11px 5px; }
+  .home-page .shopping-assurances > * { flex-direction: column; text-align: center; padding: 0 5px; gap: 6px; }
   .home-page .shopping-assurances > * > span { align-items: center; gap: 4px; }
-  .home-page .shopping-assurances strong { font-size: 12px; }
-  .home-page .shopping-assurances small { font-size: 12px; }
+  .home-page .assurance-icon { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; }
+  .home-page .assurance-icon svg { width: 15px; height: 15px; }
+  .home-page .shopping-assurances strong { font-size: 10px; }
+  .home-page .shopping-assurances small { display: none; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
   .home-page .hero { min-height: 540px; }

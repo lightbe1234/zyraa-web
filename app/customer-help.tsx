@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Check, ChevronDown, CreditCard, Droplets, Fil
 import type { StoreSettings } from '@/lib/supabase-store';
 import { money } from '@/lib/catalog';
 import { ActivityPrivacySetting } from './visitor-activity';
+import { CourierLogos } from './courier-logos';
 
 const pages = [
   ['shipping', 'Delivery', Truck], ['returns', 'Returns & exchanges', PackageCheck],
@@ -33,7 +34,7 @@ const faqItems = [
   ['Sizing', 'Are all ZYRA pieces the same fit?', 'No. Fit depends on the style. An oversized tee and a regular-fit piece will sit differently, so check the individual product details.'],
   ['Orders', 'How can I pay?', 'Cash on delivery and bank transfer are available. Any enabled online payment options appear at checkout. Review the final total before placing your order.'],
   ['Orders', 'Can I change or cancel my order?', 'Contact us with your order number as soon as possible. We can help with changes before dispatch; once an order is handed to a courier, changes may no longer be possible.'],
-  ['Delivery', 'Which couriers do you use?', 'Our delivery partners include TCS, Protex, Leopards, M&P and Trax. The courier is selected according to your destination and service availability.'],
+  ['Delivery', 'Which couriers do you use?', 'Your courier is selected according to your destination and service availability. See our delivery partner logos on the Delivery page.'],
   ['Delivery', 'Can I open my parcel?', 'Ask us to confirm open-parcel availability for your order before dispatch. Inspection depends on the courier service booked; follow the rider’s instructions. It does not include wearing or using the item.'],
   ['Delivery', 'Where can I check my order?', 'Use Track your order with your order number and the email or phone entered at checkout. For a delayed or missed delivery, contact ZYRA with that order number.'],
   ['Exchanges', 'What is the exchange window?', 'Request a size exchange within 7 calendar days of delivery. Keep the item unworn, unwashed and with its tags. Replacement sizes are subject to availability.'],
@@ -51,7 +52,7 @@ export function CustomerHelp({ path, settings }: { path: string; settings: Store
   if (!content) return <main className="care-page"><h1>Looking for something?</h1><a href="/pages/contact">Visit customer help <ArrowRight /></a></main>;
   const [title, label, intro] = content;
   const email = settings.supportEmail;
-  const whatsapp = settings.whatsappUrl && !settings.whatsappUrl.includes('923000000000') ? settings.whatsappUrl : null;
+  const whatsapp = settings.whatsappUrl || null;
   const shipping = settings.flatShipping === 0 ? 'Free' : money(settings.flatShipping);
   return <main className={`care-page care-page-${key}`}>
     <nav className="care-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/pages/contact">Customer help</a><span>/</span><span aria-current="page">{label}</span></nav>
@@ -60,7 +61,7 @@ export function CustomerHelp({ path, settings }: { path: string; settings: Store
     <div className="care-content">
       {key === 'shipping' && <>
         <div className="care-card-grid"><Card icon={<Truck />} title="Standard delivery"><strong className="care-big">{shipping}</strong><p>{settings.freeShippingThreshold > 0 ? `Free on orders of ${money(settings.freeShippingThreshold)} or more.` : 'Check your delivery total at checkout.'}</p></Card><Card icon={<PackageOpen />} title="Open-parcel delivery"><p>Ask us to confirm availability for your order before dispatch.</p></Card></div>
-        <Block id="couriers" title="Our delivery partners"><p>We work with the following couriers. Your parcel is assigned according to destination and service availability.</p><div className="care-couriers">{['TCS', 'Protex', 'Leopards', 'M&P', 'Trax'].map(name => <span key={name}><Truck aria-hidden="true" />{name}</span>)}</div></Block>
+        <Block id="couriers" title="Our delivery partners"><p>Your courier is selected according to your address and service availability.</p><CourierLogos /></Block>
         <Block id="journey" title="What happens next"><ol className="care-steps"><li><b>Order received</b><p>Save your order number and check your delivery details.</p></li><li><b>Packed for you</b><p>Your order is prepared for dispatch. Bank-transfer orders need payment confirmation first.</p></li><li><b>On the way</b><p>Check your order status online. Contact us for the courier reference or a delivery update.</p></li></ol><a className="care-button" href="/track-order">Track your order <ArrowRight /></a></Block>
         <Block id="timing" title="Delivery timing & charges"><p>Delivery timing depends on your city, stock confirmation and courier coverage. Contact us before ordering if you need a piece by a specific date. A dispatch update is not a guaranteed arrival date.</p><p>Your delivery charge is shown before you place the order. If an address requires a different service or additional charge, we will ask you to agree before dispatch. Weather, holidays and courier disruptions can affect transit.</p></Block>
         <Block id="parcel" title="At your doorstep"><p>Keep your phone reachable and provide a complete address. For open-parcel service, confirm the arrangement with ZYRA before dispatch and follow the courier’s inspection process. Do not assume every courier or shipment supports it.</p><p>If the parcel looks damaged, is missing, or a delivery attempt fails, contact us with your order number. Photos of the outer packaging can help us investigate.</p></Block>

@@ -61,6 +61,8 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
   const soldOut = product.stock <= 0;
   const onSale = Boolean(product.compareAt && product.compareAt > product.price);
   const salePercent = onSale ? Math.round((1 - product.price / product.compareAt!) * 100) : 0;
+  const whatsappBase = settings.whatsappUrl || 'https://wa.me/966595943013';
+  const whatsappHref = `${whatsappBase}${whatsappBase.includes('?') ? '&' : '?'}text=${encodeURIComponent(`Hi ZYRA, I need help choosing ${product.name}.`)}`;
   const genericDescription = product.description.startsWith('A considered everyday layer cut with a relaxed silhouette');
   const summary = details.summary || (!genericDescription && product.description.trim() ? product.description.split(/(?<=[.!?])\s/)[0] : /let.him.cook/i.test(product.slug) ? 'Let the tee do the talking. Pair it with your go-to denim and head out.' : /trouser|pant|bottom/i.test(`${product.name} ${product.category}`) ? 'Your next everyday pair. Keep it simple with a favourite tee.' : 'Pick your colour. Make it part of your rotation.');
   const endpoint = `/api/product-experience/${product.slug}`;
@@ -184,7 +186,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
           <details><summary><span className="pdp-accordion-label"><WashingMachine aria-hidden="true" /><span>Keep it looking good<small>Care instructions</small></span></span><ChevronDown /></summary><div><p>{details.care || 'Follow the care label inside your piece. Need a hand? Ask us before your first wash.'}</p></div></details>
           <details><summary><span className="pdp-accordion-label"><Truck aria-hidden="true" /><span>From us to you<small>Delivery & exchanges</small></span></span><ChevronDown /></summary><div><p>{settings.flatShipping ? `Standard delivery is ${money(settings.flatShipping)}.` : 'Standard delivery is free.'} {settings.freeShippingThreshold > 0 ? `Orders of ${money(settings.freeShippingThreshold)} or more qualify for free shipping.` : ''} Delivery details and the final total are shown at checkout.</p><p>Size exchanges can be requested within 7 days for unworn items, subject to availability and the store’s exchange conditions.</p><a href="/pages/shipping">Delivery information</a><a href="/pages/returns">Exchange policy</a></div></details>
         </div>
-        <a className="pdp-help" href="/pages/contact"><MessageCircle aria-hidden="true" /><span className="pdp-help-copy"><strong>A little help with your pick?</strong><small>Ask us about fit, fabric or your order.</small></span><ArrowRight aria-hidden="true" /></a>
+        <a className="pdp-help" href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle aria-hidden="true" /><span className="pdp-help-copy"><strong>A little help with your pick?</strong><small>Ask us about fit, fabric or your order.</small></span><ArrowRight aria-hidden="true" /></a>
       </section>
     </div>
 

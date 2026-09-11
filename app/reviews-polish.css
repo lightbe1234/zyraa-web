@@ -1,0 +1,143 @@
+.home-page .community-reviews {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  gap: 26px !important;
+  padding: clamp(52px, 6vw, 84px) var(--home-gutter) !important;
+  background: #e9e7df !important;
+}
+
+.home-page .community-reviews::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 420px;
+  height: 420px;
+  top: -260px;
+  right: -120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(213 223 186 / .72), transparent 68%);
+  pointer-events: none;
+}
+
+.home-page .community-reviews-head { gap: 18px !important; }
+.home-page .reviews-meta-banner {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgb(20 20 18 / .13);
+}
+.home-page .reviews-meta-banner > span:first-child {
+  font-size: 10px !important;
+  letter-spacing: .13em !important;
+  color: #63645c;
+}
+.home-page .reviews-meta-banner .index-pill {
+  padding: 6px 10px !important;
+  border: 1px solid rgb(20 20 18 / .12);
+  border-radius: 6px !important;
+  background: rgb(255 255 255 / .28) !important;
+  font-size: 9px !important;
+  letter-spacing: .09em !important;
+}
+
+.home-page .reviews-title-block h2 {
+  max-width: 620px;
+  font-size: clamp(38px, 6vw, 76px) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.065em !important;
+  line-height: .92 !important;
+  text-transform: none !important;
+}
+.home-page .reviews-title-block .highlight-sub {
+  color: #74756d !important;
+  font-weight: 450 !important;
+}
+
+.home-page .reviews-stats-bar {
+  padding: 4px 0 20px !important;
+  align-items: flex-end !important;
+}
+.home-page .score-num {
+  font-size: clamp(46px, 5vw, 68px) !important;
+  font-weight: 650 !important;
+}
+.home-page .stars-row { color: #22231f !important; }
+.home-page .fit-accuracy-tag {
+  padding: 9px 13px !important;
+  border-radius: 7px !important;
+  background: rgb(255 255 255 / .48) !important;
+  border-color: rgb(20 20 18 / .1) !important;
+  font-family: var(--type-body) !important;
+  font-size: 11px !important;
+  letter-spacing: 0;
+}
+
+.home-page .reviews-filter-chips { gap: 7px !important; padding: 0 0 2px !important; }
+.home-page .filter-chip {
+  min-height: 38px;
+  padding: 0 14px !important;
+  border-radius: 7px !important;
+  background: rgb(255 255 255 / .38) !important;
+  border-color: rgb(20 20 18 / .13) !important;
+  font-size: 10px !important;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease !important;
+}
+.home-page .filter-chip.active {
+  background: #181916 !important;
+  border-color: #181916 !important;
+  color: #f6f4ee !important;
+}
+
+.home-page .review-cards-feed {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)) !important;
+  gap: 12px !important;
+  margin-top: 0 !important;
+}
+.home-page .community-review-card {
+  min-height: 100%;
+  padding: clamp(18px, 2.5vw, 26px) !important;
+  gap: 18px !important;
+  border: 1px solid rgb(20 20 18 / .1) !important;
+  border-radius: 10px !important;
+  background: rgb(248 247 242 / .82) !important;
+  box-shadow: 0 10px 36px rgb(30 30 24 / .055) !important;
+  backdrop-filter: blur(8px);
+}
+.home-page .author-avatar {
+  width: 38px !important;
+  height: 38px !important;
+  background: #20211d !important;
+}
+.home-page .author-name { font-size: 14px !important; font-weight: 650 !important; }
+.home-page .review-product-bar {
+  padding: 10px 12px;
+  border: 1px solid rgb(20 20 18 / .07);
+  background: rgb(20 20 18 / .035);
+}
+.home-page .review-quote-body { font-size: 14px; line-height: 1.72; color: #34352f; }
+.home-page .fit-stats-tag,
+.home-page .fit-feeling-tag,
+.home-page .helpful-vote-btn { border-radius: 5px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .home-page .filter-chip:not(.active):hover { transform: translateY(-2px); background: #f6f4ed !important; }
+  .home-page .community-review-card:hover {
+    transform: translateY(-4px);
+    border-color: rgb(20 20 18 / .22) !important;
+    box-shadow: 0 18px 46px rgb(30 30 24 / .09) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .home-page .community-reviews { gap: 20px !important; padding-block: 42px !important; }
+  .home-page .reviews-title-block h2 { font-size: clamp(39px, 13vw, 54px) !important; }
+  .home-page .reviews-stats-bar { flex-wrap: nowrap !important; gap: 10px !important; }
+  .home-page .score-group { gap: 9px !important; }
+  .home-page .score-num { font-size: 44px !important; }
+  .home-page .fit-accuracy-tag { padding: 8px 9px !important; font-size: 10px !important; }
+  .home-page .community-review-card { border-radius: 8px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page .filter-chip,
+  .home-page .community-review-card { transition: none !important; }
+}

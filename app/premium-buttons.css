@@ -1,0 +1,127 @@
+/* Shared ZYRA button finish: restrained, tactile and consistent across storefront + admin. */
+:root {
+  --button-radius: 8px;
+  --button-ease: 180ms cubic-bezier(.2,.75,.25,1);
+}
+
+:where(button, a[class*="button"], .care-button, .cs-cta) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(.dark-button, .outline-button, .light-button, .care-button, .cs-cta,
+  .pdp-primary, .pdp-secondary, .order-download-button, .admin-file-button,
+  .logistics-lookup form > button, .tracking-id-card button) {
+  border-radius: var(--button-radius);
+  box-shadow: 0 1px 0 rgb(255 255 255 / .08) inset;
+  transition: color var(--button-ease), background-color var(--button-ease),
+    border-color var(--button-ease), box-shadow var(--button-ease), transform var(--button-ease);
+}
+
+:where(.dark-button, .care-button, .pdp-primary, .order-download-button,
+  .logistics-lookup form > button) {
+  border-color: #181916;
+  background: #181916;
+  color: #f7f5ef;
+}
+
+:where(.outline-button, .pdp-secondary, .admin-file-button, .tracking-id-card button) {
+  border-color: #cbc8bf;
+  background: rgb(255 255 255 / .22);
+}
+
+.light-button {
+  min-width: 190px;
+  height: 48px;
+  padding-inline: 18px 14px;
+  border: 1px solid rgb(255 255 255 / .7);
+  background: rgb(248 247 242 / .94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgb(0 0 0 / .12);
+  font-family: var(--type-body);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+
+.light-button svg,
+:where(.dark-button, .outline-button, .care-button, .cs-cta, .pdp-primary, .pdp-secondary) svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  stroke-width: 1.8;
+  transition: transform var(--button-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(.dark-button, .care-button, .pdp-primary, .order-download-button,
+    .logistics-lookup form > button):not(:disabled):hover {
+    background: #303329;
+    border-color: #303329;
+    box-shadow: 0 8px 22px rgb(18 20 15 / .16);
+    transform: translateY(-2px);
+  }
+
+  :where(.outline-button, .pdp-secondary, .admin-file-button,
+    .tracking-id-card button):not(:disabled):hover {
+    background: #ebe9e1;
+    border-color: #9c9a92;
+    box-shadow: 0 7px 18px rgb(20 20 16 / .08);
+    transform: translateY(-2px);
+  }
+
+  .light-button:hover {
+    background: #dbe6b7;
+    border-color: #dbe6b7;
+    color: #171814;
+    box-shadow: 0 10px 26px rgb(0 0 0 / .18);
+    transform: translateY(-2px);
+  }
+
+  :where(.dark-button, .outline-button, .light-button, .care-button, .cs-cta,
+    .pdp-primary, .pdp-secondary):hover svg {
+    transform: translateX(3px);
+  }
+
+  .admin-shell :where(.admin-actions button, .admin-section-head > button,
+    .inventory button, .tab-buttons button):not(:disabled):hover {
+    border-color: #85847d;
+    background-color: #ebe9e2;
+  }
+}
+
+:where(.dark-button, .outline-button, .light-button, .care-button, .cs-cta,
+  .pdp-primary, .pdp-secondary, .order-download-button):not(:disabled):active {
+  transform: translateY(0) scale(.985);
+  box-shadow: none;
+}
+
+:where(button, a[class*="button"], .care-button, .cs-cta):focus-visible {
+  outline: 2px solid #1c1d19;
+  outline-offset: 3px;
+}
+
+:where(button, .dark-button, .outline-button, .light-button, .care-button,
+  .cs-cta, .pdp-primary, .pdp-secondary):disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-shell :where(.admin-actions button, .admin-section-head > button,
+  .inventory button, .tab-buttons button) {
+  border-radius: 7px;
+  transition: color var(--button-ease), background-color var(--button-ease),
+    border-color var(--button-ease), transform var(--button-ease);
+}
+
+@media (max-width: 600px) {
+  :where(.dark-button, .outline-button, .light-button, .care-button, .cs-cta,
+    .pdp-primary, .pdp-secondary) { min-height: 48px; }
+  .light-button { min-width: 174px; height: 46px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a[class*="button"], .care-button, .cs-cta),
+  :where(button, a[class*="button"], .care-button, .cs-cta) svg { transition: none !important; }
+}

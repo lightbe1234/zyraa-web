@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -84,7 +85,7 @@ type StoreSettings = {
 type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 const defaultStoreSettings: StoreSettings = {
   storeName: 'ZYRA',
-  supportEmail: 'hello@zyra.store',
+  supportEmail: 'info.zyra@gmail.com',
   freeShippingThreshold: 499900,
   flatShipping: 25000,
   bankTransferInstructions: 'Use your order number as the payment reference.',
@@ -92,7 +93,7 @@ const defaultStoreSettings: StoreSettings = {
   facebookUrl: 'https://facebook.com',
   youtubeUrl: 'https://youtube.com',
   tiktokUrl: 'https://tiktok.com',
-  whatsappUrl: 'https://wa.me/923000000000',
+  whatsappUrl: 'https://wa.me/966595943013',
   heroImage: '/break-the-pattern-hero.jpeg',
   heroEyebrow: 'ZYRA / DROP 01',
   heroHeading: 'BREAK\nTHE\nPATTERN',
@@ -190,7 +191,7 @@ export default function StorefrontApp({
       if (Array.isArray(saved)) {
         setCart(saved);
         const customSlugs = [...new Set(saved.filter(i => i.slug?.startsWith('custom-')).map(i=>i.slug))];
-        if (customSlugs.length) {
+        if (customSlugs.length && !path.startsWith('/admin')) {
           setDesignsLoading(true);
           fetch('/api/custom-shirts/designs?' + customSlugs.map(s=>'slug='+encodeURIComponent(s)).join('&'))
             .then(async r => { if (!r.ok) throw new Error('Your saved designs could not load. Refresh before checking out.'); const p: Product[] = await r.json(); setCatalog(c=>[...c.filter(x=>!customSlugs.includes(x.slug)),...p]); if(p.length!==customSlugs.length) setToast('A custom design has expired. Remove it from your bag and save it again in the studio.'); })
@@ -496,7 +497,7 @@ function Drawer({
           </nav>
         )}
         <div className="drawer-foot">
-          <a href="mailto:hello@zyra.store">hello@zyra.store</a>
+          <a href="mailto:info.zyra@gmail.com">info.zyra@gmail.com</a>
           <p>Instagram · TikTok · Karachi</p>
         </div>
       </aside>
@@ -919,7 +920,7 @@ function CommunityReviews({
             fontWeight: 600,
           }}
         >
-          <span>{reviews.some((review) => seedReviews.some((seed) => seed.id === review.id && seed.quote === review.quote)) ? 'Community preview · includes sample reviews' : 'The ZYRA community'}</span>
+          <span>The ZYRA community</span>
           <span
             className="index-pill"
             style={{
@@ -1670,7 +1671,7 @@ function Home({
           <p>ZYRA · Trend-led streetwear</p>
           <h1>{(settings.heroHeading || defaultStoreSettings.heroHeading).split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</h1>
           <a className="light-button" href={settings.heroCtaHref || defaultStoreSettings.heroCtaHref}>
-            {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <span>↗</span>
+            {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <ArrowUpRight aria-hidden="true" />
           </a>
         </div>
         <p className="hero-caption">The looks you want. The quality you feel.</p>
@@ -1943,20 +1944,20 @@ function CatalogView({
   return (
     <main className="catalog-page">
       <div className="catalog-hero">
-        <div className="catalog-hero-copy">
-          <p className="eyebrow">ZYRA / Shop the edit</p>
-          <h1>{pageName}</h1>
-          <p>{story.copy}</p>
-        </div>
-        {path !== '/search' && <div className="catalog-hero-visual" aria-hidden="true">
-          <img src={heroImage} alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
+        {path !== '/search' ? <div className="catalog-hero-visual">
+          <img src={heroImage} alt={`${pageName} collection`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
           <div className="catalog-visual-topline">
             <span>COLLECTION / {String(categoryPosition + 1).padStart(2, '0')}</span>
             <span>ZYRA EDIT</span>
           </div>
-          <div className="catalog-visual-caption">
-            <div><span>{story.eyebrow}</span><strong>{pageName}</strong></div>
+          <div className="catalog-hero-copy">
+            <p className="eyebrow">ZYRA / {story.eyebrow}</p>
+            <h1>{pageName}</h1>
+            <p>{story.copy}</p>
           </div>
+          <div className="catalog-visual-footer"><span>MADE FOR YOUR ROTATION</span><span>{filtered.length} PIECES</span></div>
+        </div> : <div className="catalog-hero-copy catalog-search-copy">
+          <p className="eyebrow">ZYRA / Shop the edit</p><h1>{pageName}</h1><p>{story.copy}</p>
         </div>}
       </div>
       <div className="catalog-count">
@@ -2136,6 +2137,7 @@ function CheckoutView({
   useEffect(() => { try { const pending = sessionStorage.getItem('zyra-pending-card-order'); if (pending && /^[a-zA-Z0-9_-]{20,100}$/.test(pending)) setSavedCardOrder(pending); } catch {} }, []);
   const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.flatShipping,
     total = subtotal + shipping;
+  const hasUnavailableItems = cart.some(item => !catalog.some(product => product.slug === item.slug));
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
@@ -2221,6 +2223,7 @@ function CheckoutView({
           <a className="inline-link" href="/collections">← Continue shopping</a>
           <h1>Make it yours.</h1>
           <p className="checkout-intro">Checkout as a guest. Your order, delivery and payment—all in one place.</p>
+          {hasUnavailableItems && <p className="form-error" role="alert">Some saved items could not load, so this total is incomplete. <a href="/cart">Review your bag</a> before placing an order.</p>}
           <div className="checkout-mobile-total"><span>Order total · {cart.reduce((n, item) => n + item.qty, 0)} items</span><strong>{money(total)}</strong><a href="#checkout-summary">View details ↓</a></div>
           <p className="eyebrow form-section">01 / Contact</p>
           <div className="form-grid">
@@ -2257,20 +2260,23 @@ function CheckoutView({
             </label>
             <label className="wide">
               Address
-              <input required name="address" autoComplete="street-address" />
+              <input required name="address" autoComplete="street-address" placeholder="House / flat, street and area" />
             </label>
             <label>
               City
-              <input required name="city" autoComplete="address-level2" />
+              <input required name="city" autoComplete="address-level2" placeholder="Type your city" />
             </label>
             <label>
               Province
-              <select name="province" required>
+              <select name="province" required defaultValue="" autoComplete="address-level1">
+                <option value="" disabled>Choose province / region</option>
                 <option>Punjab</option>
                 <option>Sindh</option>
                 <option>Khyber Pakhtunkhwa</option>
                 <option>Balochistan</option>
                 <option>Islamabad Capital Territory</option>
+                <option>Azad Jammu and Kashmir</option>
+                <option>Gilgit-Baltistan</option>
               </select>
             </label>
             <label>
@@ -2283,7 +2289,7 @@ function CheckoutView({
             </label>
             <label className="wide">
               Delivery note (optional)
-              <textarea name="note" rows={3} />
+              <textarea name="note" rows={2} placeholder="Landmark or anything that helps us find you" />
             </label>
           </div>
           <p className="eyebrow form-section">03 / Shipping</p>
@@ -2328,7 +2334,7 @@ function CheckoutView({
               {error}
             </p>
           )}
-          <button className="dark-button place-order" disabled={busy}>
+          <button className="dark-button place-order" disabled={busy || hasUnavailableItems}>
             {busy ? 'Please wait…' : savedCardOrder ? 'Check saved order' : `${payment === 'safepay' ? 'Continue to secure payment' : payment === 'cod' ? 'Place cash-on-delivery order' : 'Place order'} · ${money(total)}`}{' '}
             <ArrowRight />
           </button>
@@ -2688,6 +2694,9 @@ function AdminView({
     [orders, setOrders] = useState<Order[]>([]),
     [editing, setEditing] = useState<Product | null>(null),
     [productFormOpen, setProductFormOpen] = useState(false),
+    [productActionBusy, setProductActionBusy] = useState(false),
+    [showRemovedProducts, setShowRemovedProducts] = useState(false),
+    [orderActionBusy, setOrderActionBusy] = useState(false),
     [selectedOrder, setSelectedOrder] = useState<Order | null>(null),
     [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings),
     [sections, setSections] = useState<ContentSection[]>([]),
@@ -2753,6 +2762,7 @@ function AdminView({
 
   const updateStock = async (product: Product, stock: number) => {
     setAdminError('');
+    try {
     const response = await fetch('/api/admin/products', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -2765,9 +2775,17 @@ function AdminView({
     }
     await loadAdminData();
     setSaved(`${product.name} inventory updated.`);
+    } catch {
+      setAdminError('Inventory could not be updated. Check your connection and try again.');
+    }
   };
 
   const archiveProduct = async (product: Product) => {
+    if (productActionBusy) return;
+    if (product.active !== false && !window.confirm(`Delete ${product.name} from the store? It will be hidden from shoppers. Existing orders stay safe, and you can restore it from Removed products.`)) return;
+    setProductActionBusy(true);
+    setAdminError('');
+    try {
     const response = await fetch('/api/admin/products', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -2779,10 +2797,19 @@ function AdminView({
       return;
     }
     await loadAdminData();
-    setSaved(product.active === false ? `${product.name} restored.` : `${product.name} archived.`);
+    setSaved(product.active === false ? `${product.name} restored.` : `${product.name} removed from the store. You can restore it from Removed products.`);
+    } catch {
+      setAdminError('Connection interrupted. Refresh to check the product before trying again.');
+    } finally {
+      setProductActionBusy(false);
+    }
   };
 
   const updateOrder = async (order: Order, status: string) => {
+    if (orderActionBusy) return;
+    setOrderActionBusy(true);
+    setAdminError('');
+    try {
     const response = await fetch('/api/admin/orders', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -2796,6 +2823,11 @@ function AdminView({
     setOrders((current) => current.map((entry) => (entry.number === order.number ? result : entry)));
     setSelectedOrder((current) => (current?.number === order.number ? result : current));
     setSaved(`${order.number} moved to ${status.toLowerCase()}.`);
+    } catch {
+      setAdminError('Order update could not be confirmed. Refresh before trying again.');
+    } finally {
+      setOrderActionBusy(false);
+    }
   };
   return (
     <main className="admin-shell">
@@ -2889,14 +2921,18 @@ function AdminView({
               <button className="dark-button" onClick={() => { setEditing(null); setProductFormOpen(true); }}><Plus /> Add product</button>
             </div>
             {productFormOpen && (
+              <AdminProductDialog onClose={() => { setEditing(null); setProductFormOpen(false); }}>
               <ProductEditor
+                key={editing?.slug || 'new'}
                 product={editing}
                 collections={collections}
                 products={adminCatalog}
                 onCancel={() => { setEditing(null); setProductFormOpen(false); }}
                 onSaved={async (message) => { await loadAdminData(); setSaved(message); setEditing(null); setProductFormOpen(false); }}
               />
+              </AdminProductDialog>
             )}
+            <label className="admin-removed-toggle"><input type="checkbox" checked={showRemovedProducts} onChange={event => setShowRemovedProducts(event.target.checked)} /> Removed products ({adminCatalog.filter(p => p.active === false).length})</label>
             <div className="admin-table">
             <div className="table-head">
               <b>Product</b>
@@ -2905,7 +2941,7 @@ function AdminView({
               <b>Inventory</b>
               <b>Actions</b>
             </div>
-            {adminCatalog.map((p, i) => (
+            {adminCatalog.filter(p => showRemovedProducts ? p.active === false : p.active !== false).map((p, i) => (
               <div key={p.slug}>
                 <span>
                   <img src={p.image} alt="" />
@@ -2934,7 +2970,7 @@ function AdminView({
                 </span>
                 <span className="admin-actions">
                   <button onClick={() => { setEditing(p); setProductFormOpen(true); }}><Pencil /> Edit</button>
-                  <button onClick={() => void archiveProduct(p)}>{p.active === false ? 'Restore' : 'Archive'}</button>
+                  <button disabled={productActionBusy} className={p.active === false ? '' : 'admin-delete-button'} onClick={() => void archiveProduct(p)}>{p.active === false ? 'Restore' : <><Trash2 /> Delete</>}</button>
                 </span>
               </div>
             ))}
@@ -3052,6 +3088,10 @@ function AdminView({
               <input value={settings.freeShippingThreshold / 100} inputMode="numeric" onChange={(event) => setSettings({ ...settings, freeShippingThreshold: Math.max(0, Math.round(Number(event.target.value) * 100)) })} />
             </label>
             <label>
+              Standard delivery fee (PKR)
+              <input type="number" min="0" step="1" required value={settings.flatShipping / 100} onChange={event => setSettings({ ...settings, flatShipping: Math.max(0, Math.round(Number(event.target.value) * 100)) })} />
+            </label>
+            <label>
               Bank transfer instructions
               <textarea value={settings.bankTransferInstructions} onChange={(event) => setSettings({ ...settings, bankTransferInstructions: event.target.value })} />
             </label>
@@ -3098,16 +3138,16 @@ function AdminView({
               WhatsApp Link / Number
               <input
                 type="text"
-                placeholder="https://wa.me/923000000000"
+                placeholder="https://wa.me/966595943013"
                 value={settings.whatsappUrl || ''}
                 onChange={(event) => setSettings({ ...settings, whatsappUrl: event.target.value })}
               />
             </label>
-            <button className="dark-button">Save settings</button>
+            <div className="admin-form-actions"><button type="button" className="outline-button" onClick={() => { if (window.confirm('Discard unsaved settings and reload the saved values?')) void loadAdminData(); }}>Discard changes</button><button className="dark-button">Save settings</button></div>
             {saved && <p className="success">{saved}</p>}
           </form>
         )}
-        {(saved || adminError) && <div className={`admin-toast ${adminError ? 'error' : ''}`}>{adminError || saved}</div>}
+        {(saved || adminError || orderActionBusy) && <div role={adminError ? 'alert' : 'status'} className={`admin-toast ${adminError ? 'error' : ''}`}>{orderActionBusy ? 'Updating order…' : adminError || saved}</div>}
       </section>
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatus={updateOrder} catalog={adminCatalog} />}
     </main>
@@ -3386,7 +3426,7 @@ function ProductEditor({
     [busy, setBusy] = useState(false),
     [productImages, setProductImages] = useState(() => [...(product ? getProductImages(product) : []), '', '', ''].slice(0, 4));
   const categoryOptions = Array.from(new Set([...products.map((entry) => entry.category), ...collections.map((entry) => entry.name)].filter(Boolean))).sort();
-  const collectionOptions = Array.from(new Set(collections.map((entry) => entry.name).filter(Boolean))).sort();
+  const collectionOptions = Array.from(new Set([product?.collection, ...collections.map((entry) => entry.name)].filter((name): name is string => Boolean(name)))).sort();
   return (
     <form className="admin-product-form" onSubmit={async (event) => {
       event.preventDefault();
@@ -3435,7 +3475,7 @@ function ProductEditor({
         <label>Name<input name="name" required defaultValue={product?.name} /></label>
         <label>URL slug<input name="slug" required pattern="[a-z0-9-]+" defaultValue={product?.slug} placeholder="midnight-tee" /></label>
         <label>Category<select name="category" required defaultValue={product?.category || categoryOptions[0]}><option value="" disabled>Select a category</option>{categoryOptions.map((name) => <option value={name} key={name}>{name}</option>)}</select><small>Available categories come from your current product catalog.</small></label>
-        <label>Collection<select name="collection" required defaultValue={product?.collection || collectionOptions[0]}><option value="" disabled>Select a collection</option>{collectionOptions.map((name) => <option value={name} key={name}>{name}</option>)}</select><small>Only active Store collections are shown.</small></label>
+        <label>Collection<select name="collection" required defaultValue={product?.collection || ''}><option value="" disabled>Select a collection</option>{collectionOptions.map((name) => <option value={name} key={name}>{name}{!collections.some(entry => entry.name === name) ? ' (current)' : ''}</option>)}</select><small>Choose a store collection. Existing assignments are preserved.</small></label>
         <label>Price (PKR)<input name="price" required type="number" min="0" step="1" defaultValue={product ? product.price / 100 : ''} /></label>
         <label>Compare price (PKR)<input name="compareAt" type="number" min="0" step="1" defaultValue={product?.compareAt ? product.compareAt / 100 : ''} /></label>
         <label>Stock<input name="stock" required type="number" min="0" step="1" defaultValue={product?.stock ?? 0} /></label>
@@ -3520,6 +3560,17 @@ const statusFlow: Record<string, string[]> = {
   PENDING: ['CONFIRMED', 'CANCELLED'], CONFIRMED: ['PROCESSING', 'CANCELLED'], PROCESSING: ['PACKED', 'CANCELLED'], PACKED: ['SHIPPED', 'CANCELLED'], SHIPPED: ['DELIVERED', 'RETURN_REQUESTED'], DELIVERED: ['RETURN_REQUESTED'], RETURN_REQUESTED: ['RETURNED'], CANCELLED: [], RETURNED: [],
 };
 
+function AdminProductDialog({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    dialog.current?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+  return <dialog ref={dialog} className="admin-product-dialog" aria-label="Product editor" onCancel={onClose} onClose={onClose}>{children}</dialog>;
+}
+
 function AdminOrders({ orders, onStatus, onSelect }: { orders: Order[]; onStatus: (order: Order, status: string) => void; onSelect: (order: Order) => void }) {
   return (
     <section className="admin-orders">
@@ -3577,7 +3628,7 @@ function Footer({ settings, collections = categories }: { settings?: StoreSettin
   const facebook = settings?.facebookUrl || 'https://facebook.com';
   const youtube = settings?.youtubeUrl || 'https://youtube.com';
   const tiktok = settings?.tiktokUrl || 'https://tiktok.com';
-  const whatsapp = settings?.whatsappUrl || 'https://wa.me/923000000000';
+  const whatsapp = settings?.whatsappUrl || 'https://wa.me/966595943013';
 
   const shopLinks: Array<{ label: string; href: string; highlight?: boolean }> = [
     ...collections.map((collection) => ({ label: collection.name, href: `/collections/${collection.slug}` })),

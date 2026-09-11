@@ -208,7 +208,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     facebookUrl: data.facebook_url || 'https://facebook.com',
     youtubeUrl: data.youtube_url || 'https://youtube.com',
     tiktokUrl: data.tiktok_url || 'https://tiktok.com',
-    whatsappUrl: data.whatsapp_url || 'https://wa.me/923000000000',
+    whatsappUrl: data.whatsapp_url || 'https://wa.me/966595943013',
     heroImage: data.hero_image || '/break-the-pattern-hero.jpeg',
     heroEyebrow: data.hero_eyebrow || 'ZYRA / DROP 01',
     heroHeading: data.hero_heading || 'BREAK\nTHE\nPATTERN',

@@ -1,0 +1,87 @@
+/* Scoped operations and checkout controls; storefront layouts remain unchanged. */
+.courier-logo-grid, .logistics-partners > .courier-logo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.courier-logo-grid .courier-logo-card { display: flex; align-items: center; justify-content: center; min-height: 92px; padding: 12px; border: 1px solid #deddd5; border-radius: 12px; background: #fff; }
+.courier-logo-card img { width: 100%; max-width: 140px; height: 64px; object-fit: contain; }
+.courier-logo-pending { color: #555; font-size: 15px; }
+.courier-logo-grid .courier-logo-dark { background: #124b39; }
+:is(.admin-shell, .admin-product-dialog, .checkout-layout) select {
+  appearance: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23353530' stroke-width='1.8'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;
+  border: 1px solid #cccac2;
+  border-radius: 10px;
+  color: #22221e;
+  padding: 12px 42px 12px 14px;
+  min-height: 48px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px;
+  text-overflow: ellipsis;
+}
+:is(.admin-shell, .admin-product-dialog, .checkout-layout) :is(input, textarea, select):focus-visible {
+  outline: 2px solid #555c41;
+  outline-offset: 3px;
+}
+.admin-main, .admin-main > *, .admin-product-dialog .form-grid > *, .admin-shell .form-grid > * { min-width: 0; }
+.admin-shell .admin-orders > div { font-family: var(--font-body), sans-serif; font-size: 14px; line-height: 1.5; }
+.admin-shell .admin-orders :is(.order-link small, div > span:not(.status) small) { font-size: 12px; }
+.admin-shell .admin-orders .admin-section-head h2 { padding: 0; border: 0; font-size: 24px; }
+.admin-shell .admin-orders .admin-section-head p { font-size: 14px; line-height: 1.6; }
+.admin-shell .admin-table { font-size: 14px; }
+.admin-shell .admin-section-head { gap: 16px; flex-wrap: wrap; }
+.admin-removed-toggle { display: flex; align-items: center; gap: 10px; margin: 18px 0; font-size: 14px; }
+.admin-removed-toggle input { width: 20px; height: 20px; }
+.admin-actions { flex-wrap: wrap; gap: 8px; }
+.admin-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.admin-actions .admin-delete-button { color: #9b3029; }
+.admin-product-dialog { width: min(900px, calc(100vw - 32px)); max-width: none; max-height: 90dvh; margin: auto; padding: 0; border: 1px solid #d5d3c9; border-radius: 18px; background: #f7f6f1; color: #181916; overscroll-behavior: contain; }
+.admin-product-dialog::backdrop { background: rgb(0 0 0 / 58%); backdrop-filter: blur(3px); }
+.admin-product-dialog .admin-product-form { margin: 0; border: 0; padding: 24px; }
+.admin-product-dialog .admin-form-actions { position: sticky; bottom: -24px; z-index: 2; background: #f7f6f1; padding: 16px 0; border-top: 1px solid #d5d3c9; }
+.admin-product-dialog :is(input:not([type=checkbox]):not([type=file]), textarea) { font-size: 16px; }
+.checkout-layout .form-grid :is(input, textarea) { border-radius: 10px; background: #fff; }
+.checkout-layout .form-grid label { gap: 8px; line-height: 1.5; }
+.checkout-layout .choice { border-radius: 12px; transition: border-color .15s, background .15s; }
+.checkout-layout .choice.selected { background: #ecefe5; border-color: #687052; }
+.checkout-layout .choice > span { min-width: 0; flex: 1; }
+.checkout-layout .form-section { padding-top: 24px; border-top: 1px solid var(--line); }
+.checkout-layout .place-order { border-radius: 10px; }
+@media(max-width: 1000px) {
+  .admin-shell { display: block; }
+  .admin-shell > aside { position: static; width: 100%; height: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 16px; }
+  .admin-shell > aside .wordmark { width: 100%; grid-column: 1/-1; }
+  .admin-shell > aside .eyebrow { display: none; }
+  .admin-shell > aside button { width: auto; flex: 1 0 auto; margin: 0; min-height: 44px; border-radius: 8px; text-align: center; padding: 10px 14px; }
+  .admin-shell > aside .logout { margin-top: 0; }
+  .admin-main { margin-left: 0; padding: 24px 16px; }
+  .admin-table { overflow: visible; background: transparent; border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .admin-table > .table-head { display: none; }
+  .admin-table > div { min-width: 0; display: grid; grid-template-columns: 1fr auto; padding: 16px; gap: 14px; border: 1px solid var(--line); border-radius: 12px; background: #faf9f5; }
+  .admin-table > div > span:first-child { grid-column: 1/-1; min-width: 0; }
+  .admin-table > div > span:first-child b { overflow-wrap: anywhere; }
+  .admin-table .inventory { grid-column: 1/-1; justify-content: flex-start; }
+  .admin-table .admin-actions { grid-column: 1/-1; display: flex; }
+  .admin-table .admin-actions button { flex: 1; }
+  .admin-orders > div:not(.admin-section-head):not(.admin-empty) { min-width: 0; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; }
+  .admin-orders > div > span:not(.status) { grid-column: 1/-1; overflow-wrap: anywhere; }
+  .admin-orders > div > select { grid-column: 1/-1; grid-row: auto; }
+  .admin-orders > div > .status { grid-column: 2; grid-row: 1; font-size: 10px; }
+  .admin-orders > div > .icon-button { grid-column: 2; grid-row: 2; }
+}
+@media(max-width: 600px) {
+  .admin-table { grid-template-columns: minmax(0, 1fr); }
+  .admin-main > header { gap: 12px; flex-wrap: wrap; }
+  .admin-shell :is(.form-grid, .admin-form), .admin-product-dialog .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell :is(input:not([type=checkbox]):not([type=radio]), textarea) { max-width: 100%; min-width: 0; font-size: 16px; }
+  .admin-product-dialog { width: calc(100vw - 16px); max-height: 94dvh; border-radius: 14px; }
+  .admin-product-dialog .admin-product-form { padding: 18px; }
+  .admin-product-dialog .admin-form-actions { bottom: -18px; }
+  .admin-product-dialog .admin-section-head { gap: 12px; align-items: flex-start; }
+  .admin-product-dialog h2 { font-size: 24px; }
+  .admin-shell .admin-form-actions { flex-wrap: wrap; }
+  .checkout-layout .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .checkout-layout .choice { align-items: flex-start; }
+  .checkout-layout .choice input[type=radio] { flex-shrink: 0; margin-top: 4px; }
+  .checkout-layout .choice strong { font-size: 13px; }
+}
