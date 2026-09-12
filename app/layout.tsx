@@ -18,6 +18,7 @@ import './premium-footer.css';
 import './admin-checkout-responsive.css';
 import './premium-buttons.css';
 import './reviews-polish.css';
+import './home-refinement.css';
 import { ActivityConsent } from './visitor-activity';
 import { absoluteUrl, siteOrigin, serializeSchema } from '@/lib/seo';
 

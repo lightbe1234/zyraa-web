@@ -217,6 +217,16 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
       <div className="pdp-size-table pdp-fit-table"><table><caption>Garment measurements in {unit === 'in' ? 'inches' : 'centimetres'}. Measured flat.</caption><thead><tr><th>Size</th>{sizeGuide.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{sizeGuide.rows.map((row) => <tr key={row.size}><th>{row.size}</th>{row.values.map((value, index) => <td key={sizeGuide.columns[index]}>{formatGuideValue(value, unit)}</td>)}</tr>)}</tbody></table></div>
       <h3>How to measure</h3><ol>{sizeGuide.measureSteps.map((step) => <li key={step}>{step}</li>)}</ol><p className="pdp-fit-variation">A 0.5-inch variation can occur during production.</p>{details.sizeNote && <p>{details.sizeNote}</p>}<a className="pdp-secondary" href="/pages/contact">Get sizing help <ArrowRight /></a>
     </ProductModal>}
-    {modal === 'zoom' && <ProductModal title="Product photos" close={() => { setModal(null); setZoomed(false); }} wide><div className={`pdp-lightbox-photo ${zoomed ? 'is-zoomed' : ''}`}><button type="button" aria-label={zoomed ? 'Zoom out' : 'Zoom in'} onClick={() => setZoomed(!zoomed)}><img src={gallery[active]} alt={`${product.name} detail, photo ${active + 1}`} /></button></div><div className="pdp-lightbox-controls"><button type="button" aria-label="Previous enlarged photo" onClick={() => showImage(active - 1)} disabled={gallery.length < 2}><ArrowLeft /></button><span>{active + 1} / {gallery.length} · Tap image to {zoomed ? 'zoom out' : 'zoom in'}</span><button type="button" aria-label="Next enlarged photo" onClick={() => showImage(active + 1)} disabled={gallery.length < 2}><ArrowRight /></button></div></ProductModal>}
+    {modal === 'zoom' && <ProductModal title={product.name} close={() => { setModal(null); setZoomed(false); }} wide>
+      <div className={`pdp-lightbox-photo ${zoomed ? 'is-zoomed' : ''}`} key={active}>
+        <button type="button" aria-label={zoomed ? 'Zoom out' : 'Zoom in'} aria-pressed={zoomed} onClick={() => setZoomed(!zoomed)}><img src={gallery[active]} alt={`${product.name} detail, photo ${active + 1}`} /></button>
+      </div>
+      <div className="pdp-lightbox-controls">
+        <button type="button" aria-label="Previous enlarged photo" onClick={() => showImage(active - 1)} disabled={gallery.length < 2}><ArrowLeft /></button>
+        <div className="pdp-lightbox-status"><span aria-live="polite">{String(active + 1).padStart(2, '0')} / {String(gallery.length).padStart(2, '0')}</span><small>{zoomed ? 'Scroll to explore · Tap to zoom out' : 'Tap photo for a closer look'}</small></div>
+        <button type="button" aria-label="Next enlarged photo" onClick={() => showImage(active + 1)} disabled={gallery.length < 2}><ArrowRight /></button>
+      </div>
+      {gallery.length > 1 && <div className="pdp-lightbox-thumbnails" aria-label="Choose enlarged photo">{gallery.map((src, index) => <button key={src} type="button" aria-label={`View photo ${index + 1}`} aria-pressed={active === index} onClick={() => showImage(index)}><img src={src} alt="" /></button>)}</div>}
+    </ProductModal>}
   </main>;
 }

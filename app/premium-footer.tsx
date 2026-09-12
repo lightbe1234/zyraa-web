@@ -55,7 +55,7 @@ export function PremiumFooter({ settings, collections }: { settings: StoreSettin
       </section>
 
       <section className="premium-footer-social" data-purpose="social-links">
-        <div><p className="eyebrow">Stay in the loop</p><h3>Find us where the fits drop first.</h3></div>
+        <div><p className="eyebrow">Stay in the loop</p><h3>New arrivals, outfit ideas and more.</h3></div>
         <div>{socials.map(([name, href]) => <a aria-label={name} href={href} target="_blank" rel="noreferrer" key={name}><svg fill="currentColor" viewBox="0 0 24 24"><path d={socialPaths[name]} /></svg><span>{name}</span></a>)}</div>
       </section>
 

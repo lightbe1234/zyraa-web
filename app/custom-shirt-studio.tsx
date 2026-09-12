@@ -9,7 +9,7 @@ export function CustomShirtBanner() {
   useEffect(()=>{fetch('/api/custom-shirts').then(r=>r.ok?r.json():null).then(d=>{if(d?.settings?.custom_banner_image)setImage(d.settings.custom_banner_image);}).catch(()=>{});},[]);
   return <a className="zs-banner" href="/customise-your-shirt">
     <img src={image} alt="Custom shirt design service" className="zs-banner-photo" loading="lazy"/>
-    <div className="zs-banner-copy"><span>ZYRA / CUSTOM STUDIO</span><h2>Your design.<br/>Your shirt.</h2><p>Pick your colour. Add your art. Make it yours.</p><span className="zs-banner-link">Create my shirt <ArrowUpRight size={22} aria-hidden="true"/></span><div className="zs-banner-steps" aria-hidden="true"><span>01 / Choose</span><span>02 / Create</span><span>03 / Wear</span></div></div>
+    <div className="zs-banner-copy"><span>ZYRA / CUSTOM SHIRTS</span><h2>Your design.<br/>Your shirt.</h2><p>Choose a shirt. Upload the print you want.</p><span className="zs-banner-link">Create my shirt <ArrowUpRight size={22} aria-hidden="true"/></span><div className="zs-banner-steps" aria-hidden="true"><span>01 / Choose</span><span>02 / Upload</span><span>03 / Order</span></div></div>
     <span className="zs-banner-corner" aria-hidden="true">YOUR IDEA. OUR CANVAS.</span>
   </a>;
 }

@@ -152,7 +152,30 @@
 .pdp-fit-table tbody th { font-weight: 650; }
 .pdp-fit-table caption { padding: 12px 10px 0; }
 .pdp-fit-variation { padding-left: 12px; border-left: 2px solid var(--ink); }
-.pdp-modal-wide { width: 900px; max-width: min(900px, calc(100vw - 24px)); }
+.pdp-modal-wide { width: 900px; max-width: min(900px, calc(100vw - 32px)); border: 0; border-radius: 18px; overflow: hidden; }
+.pdp-modal-wide .pdp-modal-inner { display: flex; flex-direction: column; height: min(880px, 92dvh); padding: 20px; box-sizing: border-box; }
+.pdp-modal-wide header { margin-bottom: 14px; gap: 12px; }
+.pdp-modal-wide header h2 { font-size: clamp(17px, 2vw, 23px); line-height: 1.25; }
+.pdp-modal-wide header button { border-radius: 50%; border: 0; background: #e9e6df; }
+.pdp-modal-wide .pdp-lightbox-photo { flex: 1; min-height: 0; max-height: none; border-radius: 8px; overscroll-behavior: contain; }
+.pdp-modal-wide .pdp-lightbox-photo button { height: 100%; }
+.pdp-modal-wide .pdp-lightbox-photo img { height: 100%; }
+.pdp-modal-wide .pdp-lightbox-photo.is-zoomed button { height: auto; min-height: 100%; }
+.pdp-modal-wide .pdp-lightbox-photo.is-zoomed img { height: auto; }
+.pdp-modal-wide .pdp-lightbox-controls { flex-shrink: 0; padding: 10px 0; margin: 0; }
+.pdp-modal-wide .pdp-lightbox-controls button { width: 48px; height: 48px; border: 0; border-radius: 50%; background: #e9e6df; }
+.pdp-lightbox-status { display: grid; gap: 5px; text-align: center; }
+.pdp-lightbox-status > span { font-variant-numeric: tabular-nums; letter-spacing: .15em; font-weight: 600; }
+.pdp-lightbox-status small { font-size: 10px; color: #66635c; }
+.pdp-lightbox-thumbnails { display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; padding: 3px; scrollbar-width: thin; }
+.pdp-lightbox-thumbnails button { flex: 0 0 42px; height: 52px; border: 1px solid transparent; border-radius: 5px; background: #e9e6df; padding: 2px; opacity: .55; }
+.pdp-lightbox-thumbnails button[aria-pressed="true"] { border-color: var(--ink); opacity: 1; }
+.pdp-lightbox-thumbnails img { width: 100%; height: 100%; object-fit: contain; border-radius: 3px; }
+@media (max-width: 760px) {
+  .pdp-modal.pdp-modal-wide { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .pdp-modal-wide .pdp-modal-inner { height: 100%; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
+  .pdp-modal-wide header { margin-bottom: 10px; }
+}
 .pdp-lightbox-photo { max-height: 65dvh; overflow: auto; background: #e9e6df; }
 .pdp-lightbox-photo button { width: 100%; display: block; padding: 0; border: 0; background: none; cursor: zoom-in; }
 .pdp-lightbox-photo img { display: block; width: 100%; height: 60dvh; object-fit: contain; }

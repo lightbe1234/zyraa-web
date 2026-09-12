@@ -707,12 +707,6 @@ function ProductCard({ product }: { product: Product }) {
             <div className="product-card-gallery-nav" aria-label={`${product.name} photos`}>
               <button type="button" aria-label={`Previous photo of ${product.name}`} disabled={activeImage === 0}
                 onClick={() => showImage(activeImage - 1)}><ArrowLeft aria-hidden="true" /></button>
-              <div className="product-card-dots">
-                {gallery.map((src, index) => (
-                  <button type="button" key={src} aria-label={`Show photo ${index + 1} of ${product.name}`}
-                    aria-pressed={index === activeImage} onClick={() => showImage(index)}><span /></button>
-                ))}
-              </div>
               <button type="button" aria-label={`Next photo of ${product.name}`} disabled={activeImage === gallery.length - 1}
                 onClick={() => showImage(activeImage + 1)}><ArrowRight aria-hidden="true" /></button>
             </div>
@@ -765,7 +759,7 @@ function Rail({
       </div>
       <div className="section-view-all">
         <a className="outline-button" href="/collections">
-          View all <span>↗</span>
+          View all <ArrowRight aria-hidden="true" />
         </a>
       </div>
     </section>
@@ -1668,13 +1662,13 @@ function Home({
         />
         <div className="hero-shade" />
         <div className="hero-copy">
-          <p>ZYRA · Trend-led streetwear</p>
+          <p>ZYRA · Everyday & streetwear</p>
           <h1>{(settings.heroHeading || defaultStoreSettings.heroHeading).split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</h1>
           <a className="light-button" href={settings.heroCtaHref || defaultStoreSettings.heroCtaHref}>
             {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <ArrowUpRight aria-hidden="true" />
           </a>
         </div>
-        <p className="hero-caption">The looks you want. The quality you feel.</p>
+        <p className="hero-caption">Graphic tees. Everyday essentials.</p>
       </section>
       )}
       <div className="shopping-assurances" aria-label="Shopping at ZYRA">
@@ -1682,14 +1676,14 @@ function Home({
         <div><i className="assurance-icon"><PackageOpen aria-hidden="true" /></i><span><strong>Allowed to open</strong><small>Check your parcel</small></span></div>
         <a href="/track-order"><i className="assurance-icon"><PackageCheck aria-hidden="true" /></i><span><strong>Track your order</strong><small>Check order status <ChevronRight aria-hidden="true" /></small></span></a>
       </div>
-      {enabled('best-sellers') && <Rail title="Find your next favourite" label="Shop ZYRA" description="The styles you’re looking for, with quality fabrics that feel as good as they look." list={catalog} />}
+      {enabled('best-sellers') && <Rail title="Find your fit" label="Shop ZYRA" description="Tees, shirts and trousers. Pick your favourites." list={catalog} />}
       {enabled('brand-manifesto') && (
       <section className="manifesto section-shell">
         <div className="manifesto-minimal">
           <div>
             <p className="eyebrow">ZYRA / EST. 2023</p>
             <h2>All the trends.<br />One destination.</h2>
-            <p className="manifesto-copy">Your next look. Quality you can feel.</p>
+            <p className="manifesto-copy">From graphic tees to everyday essentials, all in one place.</p>
         </div>
         <div className="manifesto-minimal-badges" aria-label="Store assurances">
           <span><i className="manifesto-icon-wrap"><CheckCircle2 aria-hidden="true" /></i> Quality fabrics</span>
@@ -1700,10 +1694,10 @@ function Home({
       )}
       {enabled('core-forms') && (
       <Rail
-        title="Make it your own"
+        title="Keep it casual"
         label="Graphics & everyday wear"
-        description="Go bold with a graphic tee or keep it simple. Wear what feels like you."
-        list={catalog.slice(4)}
+        description="Graphic or plain. Find your kind of tee."
+        list={catalog.filter((p) => /\btees?\b|t-shirts?/i.test(`${p.category} ${p.name}`))}
       />
       )}
       <section className="editorial-grid">
@@ -1724,35 +1718,30 @@ function Home({
       <Rail
         title="Complete your look"
         label="Bottoms"
-        description="Find the right pair to go with your favourite tee."
+        description="Trousers to pair with your tees and shirts."
         list={catalog.filter(
-          (p) => p.category === 'Bottoms' || p.category === 'Essentials',
+          (p) => /\bbottoms?\b|trousers?|pants?|joggers?|jeans|shorts|cargos?/i.test(`${p.category} ${p.name}`),
         )}
       />
       <CustomShirtBanner />
       {enabled('collection-grid') && <section className="section-shell collection-discovery" id="collections">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Shop by mood</p>
-            <h2>Pick your lane.</h2>
+            <p className="eyebrow">Shop by collection</p>
+            <h2>The ZYRA collections</h2>
           </div>
-          <p className="collection-intro">Four edits. Zero guesswork.<br />Start with what feels like you.</p>
+          <p className="collection-intro">From graphic tees to trousers and layers. Find what you’re looking for, all in one place.</p>
         </div>
         <div className="collection-grid">
-          {collections.map((c, index) => (
+          {collections.map((c) => (
             <a href={`/collections/${c.slug}`} key={c.slug} className="collection-card">
               <div className="collection-visual">
                 <img src={media(c.image)} alt="" loading="lazy" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/collection-store.jpg'; }} />
-                <div className="collection-index" aria-hidden="true">
-                  <span>EDIT {String(index + 1).padStart(2, '0')}</span>
-                  <strong>ZYRA SELECT</strong>
-                </div>
                 <div className="collection-caption">
                   <div>
-                    <span className="collection-card-kicker">Made for your rotation</span>
                     <h3>{c.name}</h3>
+                    <span className="collection-card-kicker">Shop collection →</span>
                   </div>
-                  <div className="collection-arrow" aria-hidden="true"><ArrowRight /></div>
                 </div>
               </div>
             </a>
@@ -1770,9 +1759,9 @@ function Home({
       )}
       <section className="trust-section" aria-label="Brand guarantees and trust signals">
         <header className="trust-heading">
-          <p className="eyebrow">Why shop ZYRA</p>
-          <h2>Why ZYRA</h2>
-          <span className="trust-live">Quality. Comfort. Care.</span>
+          <p className="eyebrow">Here to help</p>
+          <h2>Before you order</h2>
+          <span className="trust-live">A few useful details.</span>
         </header>
         <div className="trust-strip">
         <div className="trust-card">
@@ -1781,8 +1770,8 @@ function Home({
               <Shirt className="trust-icon" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="trust-title">Quality fabrics</h3>
-              <p className="trust-desc">Made to feel good.</p>
+              <h3 className="trust-title">Choosing a size?</h3>
+              <p className="trust-desc">Check the size guide on the product page.</p>
             </div>
           </div>
           <span className="trust-pill trust-pill-ssl">Fabric first</span>
@@ -1794,8 +1783,8 @@ function Home({
               <Truck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Track your order</h3>
-              <p className="trust-desc">Updates online.</p>
+              <h3 className="trust-title">Delivery questions?</h3>
+              <p className="trust-desc"><a href="/pages/shipping">Read delivery information →</a></p>
             </div>
           </div>
           <span className="trust-pill">Order updates</span>
@@ -1807,8 +1796,8 @@ function Home({
               <CreditCard className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Pay your way</h3>
-              <p className="trust-desc">COD or bank transfer.</p>
+              <h3 className="trust-title">Need a hand?</h3>
+              <p className="trust-desc"><a href={settings.whatsappUrl || 'https://wa.me/966595943013'}>Chat with us on WhatsApp →</a></p>
             </div>
           </div>
           <span className="trust-pill trust-pill-black">Your choice</span>
@@ -1820,8 +1809,8 @@ function Home({
               <PackageCheck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">7-day exchange</h3>
-              <p className="trust-desc">Unworn items only.</p>
+              <h3 className="trust-title">Exchanging an item?</h3>
+              <p className="trust-desc"><a href="/pages/returns">Check exchange eligibility →</a></p>
             </div>
           </div>
           <span className="trust-pill">See exchange policy</span>
