@@ -43,6 +43,6 @@ export function ProductDetailsEditor({ slug, sizes }: { slug: string; sizes: str
       } catch (error) { setStatus(error instanceof Error ? error.message : 'Please try again.'); }
       finally { setBusy(false); }
     }}>{busy ? 'Saving details…' : 'Save page details'}</button>
-    {status && <p role="status">{status}</p>}
+    {status && <output>{status}</output>}
   </details>;
 }

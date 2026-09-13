@@ -9,7 +9,7 @@ const folder = 'outputs/audit/database-' + new Date().toISOString().replaceAll('
 mkdirSync(folder, { recursive: true });
 const summary = [];
 for (const table of tables) {
-  let rows = [];
+  const rows = [];
   let error;
   for (let offset = 0; ; offset += 1000) {
     const result = await db.from(table).select('*').range(offset, offset + 999);

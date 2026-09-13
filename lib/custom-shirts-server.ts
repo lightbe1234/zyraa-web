@@ -29,7 +29,7 @@ export async function designProducts(slugs: string[]): Promise<Product[]> {
   const { data, error } = await db.from('custom_shirt_designs').select('*,products(*)').in('slug', slugs).gt('expires_at', new Date().toISOString());
   if (error) throw new Error('Your saved design could not be loaded.');
   return Promise.all((data || []).map(async row => {
-    const p = row.products as Record<string, any>;
+    const p = row.products as Record<string, unknown>;
     const details = await signedDetails(row.details as CustomDetails);
     return { slug: row.slug, name: 'Your custom shirt', category: 'Custom shirt', collection: 'Custom shirt', price: p.price, image: details.image || '', alternate: details.image || '', images: [details.image || ''], rating: 0, reviews: 0, stock: p.stock, colors: p.colors, sizes: p.sizes, featured: false, newArrival: false, active: true, description: `${details.fabric} · ${details.print}`, customDetails: details } as Product;
   }));

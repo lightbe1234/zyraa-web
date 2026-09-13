@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, ArrowRight, ArrowLeft, Check, ChevronDown, Upload, Shirt, Layers, Leaf, X, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, ArrowLeft, Check, Upload, Shirt, Layers, Leaf, X, Plus } from 'lucide-react';
 import { money, type Product } from '@/lib/catalog';
 import { prepareImage, uploadResponse } from '@/lib/prepare-image';
 import { customQuote, customSizes, type CustomConfig, type CustomDetails, type CustomOption } from '@/lib/custom-shirts';

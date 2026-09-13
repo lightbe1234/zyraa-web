@@ -17,7 +17,7 @@ const paths = ['/', '/collections', ...config.collections.map(c => '/collections
   ...catalog.map(p => '/products/' + p.slug), '/customise-your-shirt', '/cart', '/checkout',
   '/track-order', '/pages/contact', '/pages/shipping', '/pages/returns', '/pages/privacy', '/pages/terms', '/admin'];
 const results = [];
-for (const path of [...new Set(paths)]) {
+for (const path of Array.from(new Set(paths))) {
   try {
     const start = Date.now();
     const response = await page.goto(base + path, { waitUntil: 'domcontentloaded', timeout: 45000 });
