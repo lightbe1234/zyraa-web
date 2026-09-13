@@ -3573,6 +3573,9 @@ button:focus-visible {
   }
 }
 @media (max-width: 760px) {
+  .menu-signature {
+    display: none;
+  }
   .menu-drawer {
     width: 100%;
     max-width: none;
