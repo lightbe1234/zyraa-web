@@ -17,3 +17,11 @@ export function addBagSelection(
     ? cart.map((entry) => entry === selected ? { ...entry, qty: entry.qty + item.qty } : entry)
     : [...cart, { slug: item.slug, size: item.size, color: item.color, qty: item.qty }];
 }
+
+/** Buy now is an express checkout selection, independent from the saved bag. */
+export function buyNowSelection(
+  item: BagSelection,
+  product: { slug: string; sizes: string[]; colors: string[]; stock: number },
+) {
+  return addBagSelection([], item, product);
+}

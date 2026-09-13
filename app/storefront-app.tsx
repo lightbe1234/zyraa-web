@@ -37,7 +37,7 @@ import {
   type Product,
 } from '@/lib/catalog';
 import { seedReviews, type Review } from '@/lib/reviews';
-import { addBagSelection } from '@/lib/product-purchase';
+import { addBagSelection, buyNowSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
 import { CustomerHelp } from './customer-help';
 import { OrderTracking } from './order-tracking';
@@ -278,7 +278,7 @@ export default function StorefrontApp({
     try {
       const product = catalog.find((entry) => entry.slug === item.slug);
       if (!product) throw new Error('This product is no longer available.');
-      const next = addBagSelection(cart, item, product);
+      const next = buyNow ? buyNowSelection(item, product) : addBagSelection(cart, item, product);
       // Persist selections before a full navigation to checkout can unmount React.
       localStorage.setItem('zyra-cart', JSON.stringify(next));
       setCart(next);
@@ -406,6 +406,7 @@ export default function StorefrontApp({
         cart={cart}
         subtotal={subtotal}
         catalog={catalog}
+        update={update}
       />
       {toast && (
         <div className="toast" role="status">
@@ -487,52 +488,66 @@ function Drawer({
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <aside
-        className="drawer"
+        className="drawer menu-drawer"
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"
       >
-        <div className="panel-head">
-          <b>{shop ? 'SHOP' : 'MENU'}</b>
+        <div className="panel-head menu-drawer-head">
+          <div className="menu-drawer-brand" aria-label={shop ? 'Shop categories' : 'ZYRA menu'}>
+            <span className="menu-drawer-wordmark">ZYRA<sup>®</sup></span>
+            <span className="menu-drawer-context">{shop ? 'Shop categories' : 'Navigation'}</span>
+          </div>
           <button
-            className="icon-button"
+            className="icon-button menu-drawer-control"
             onClick={shop ? () => setShop(false) : close}
             aria-label={shop ? 'Back' : 'Close'}
           >
             {shop ? <ArrowLeft /> : <X />}
           </button>
         </div>
-        {shop ? (
-          <nav className="drawer-links">
-            {collections.map((c) => (
-              <a href={`/collections/${c.slug}`} key={c.slug}>
-                {c.name}
+        <div className="menu-brand-ribbon" aria-hidden="true">
+          <span>ZYRA / EST. 2023</span>
+          <p>All the trends.<br /><em>One destination.</em></p>
+          <i>®</i>
+        </div>
+        <div className="menu-drawer-body">
+          {shop ? (
+            <nav className="drawer-links drawer-category-links" aria-label="Shop categories">
+              <a className="menu-featured-link" href="/collections">
+                <span><small>00</small>Shop all</span>
                 <ChevronRight />
               </a>
-            ))}
-          </nav>
-        ) : (
-          <nav className="drawer-links">
-            <button onClick={() => setShop(true)}>
-              Shop <ChevronRight />
-            </button>
-            <a href="/collections/best-sellers">
-              Best sellers <ChevronRight />
-            </a>
-            <a href="/collections/new-arrivals">
-              New arrivals <ChevronRight />
-            </a>
-            <a href="/track-order">
-              Track order <ChevronRight />
-            </a>
-            <a href="/pages/about">
-              Our story <ChevronRight />
-            </a>
-          </nav>
-        )}
+              {collections.map((c, index) => (
+                <a href={`/collections/${c.slug}`} key={c.slug}>
+                  <span><small>{String(index + 1).padStart(2, '0')}</small>{c.name}</span>
+                  <ChevronRight />
+                </a>
+              ))}
+            </nav>
+          ) : (
+            <nav className="drawer-links drawer-main-links" aria-label="Menu links">
+              <button className="menu-featured-link" onClick={() => setShop(true)}>
+                <span><small>01</small>Shop</span><ChevronRight />
+              </button>
+              <a href="/collections/best-sellers">
+                <span><small>02</small>Best sellers</span><ChevronRight />
+              </a>
+              <a href="/collections/new-arrivals">
+                <span><small>03</small>New arrivals</span><ChevronRight />
+              </a>
+              <div className="menu-drawer-secondary" aria-label="Customer links">
+                <a href="/track-order">Track order <ChevronRight /></a>
+                <a href="/#our-story" onClick={close}>Our story <ChevronRight /></a>
+              </div>
+            </nav>
+          )}
+        </div>
+        <div className="menu-signature" aria-hidden="true">ZYRA<span>®</span><small>Karachi / Est. 2023</small></div>
         <div className="drawer-foot">
+          <span>Need help?</span>
           <a href="mailto:info.zyra@gmail.com">info.zyra@gmail.com</a>
-          <p>Instagram · TikTok · Karachi</p>
+          <p>Instagram <span aria-hidden="true">·</span> TikTok <span aria-hidden="true">·</span> Karachi</p>
         </div>
       </aside>
     </div>
@@ -622,12 +637,14 @@ function CartPanel({
   cart,
   subtotal,
   catalog,
+  update,
 }: {
   open: boolean;
   close: () => void;
   cart: CartItem[];
   subtotal: number;
   catalog: Product[];
+  update: (index: number, qty: number) => void;
 }) {
   if (!open) return null;
   return (
@@ -652,7 +669,7 @@ function CartPanel({
             <div className="mini-cart">
               {cart.map((item, i) => {
                 const p = catalog.find((product) => product.slug === item.slug);
-                if (!p) return null;
+                if (!p) return <div key={`${item.slug}${i}`} className="mini-cart-unavailable"><span><b>Saved item unavailable</b><small>Remove it before checkout.</small><button type="button" className="remove" onClick={() => update(i, 0)}>Remove</button></span></div>;
                 return (
                   <div key={`${item.slug}${i}`}>
                     <img src={p.image} alt="" />
@@ -663,6 +680,7 @@ function CartPanel({
                       </small>
                       <CustomItemDetails details={p.customDetails} />
                       <strong>{money(p.price * item.qty)}</strong>
+                      <button type="button" className="remove" onClick={() => update(i, 0)}>Remove</button>
                     </span>
                   </div>
                 );
@@ -1708,7 +1726,7 @@ function Home({
       </div>
       {enabled('best-sellers') && <Rail title="Find your fit" label="Shop ZYRA" description="Tees, shirts and trousers. Pick your favourites." list={catalog} />}
       {enabled('brand-manifesto') && (
-      <section className="manifesto section-shell">
+      <section id="our-story" className="manifesto section-shell">
         <div className="manifesto-minimal">
           <div>
             <p className="eyebrow">ZYRA / EST. 2023</p>
@@ -2148,9 +2166,11 @@ function CheckoutView({
 }) {
   const [payment, setPayment] = useState('cod'),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [card, setCard] = useState({ available: false, environment: 'sandbox' });
   const requestKey = useRef<{ payload: string; key: string } | null>(null);
+  const submitting = useRef(false);
   const [savedCardOrder, setSavedCardOrder] = useState('');
   useEffect(() => { fetch('/api/payments/safepay').then(r => r.json()).then(setCard).catch(() => {}); }, []);
   useEffect(() => { try { const pending = sessionStorage.getItem('zyra-pending-card-order'); if (pending && /^[a-zA-Z0-9_-]{20,100}$/.test(pending)) setSavedCardOrder(pending); } catch {} }, []);
@@ -2159,15 +2179,40 @@ function CheckoutView({
   const hasUnavailableItems = cart.some(item => !catalog.some(product => product.slug === item.slug));
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (busy) return;
+    if (submitting.current) return;
     if (!cart.length) {
       setError('Your bag is empty.');
       return;
     }
     if (cart.some(i=>!catalog.some(p=>p.slug===i.slug))) { setError('An item is unavailable. Return to your bag to remove it or save your custom design again.'); return; }
+    const form = e.currentTarget;
+    const requiredFields = [
+      ['email', 'Enter a valid email address.'],
+      ['phone', 'Enter a valid mobile phone number.'],
+      ['firstName', 'Enter your first name.'],
+      ['lastName', 'Enter your last name.'],
+      ['address', 'Enter your delivery address.'],
+      ['city', 'Enter your city.'],
+      ['province', 'Choose your province or region.'],
+    ] as const;
+    const nextFieldErrors: Record<string, string> = {};
+    for (const [name, message] of requiredFields) {
+      const field = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+      const value = field?.value.trim() || '';
+      if (!value || name === 'email' && field instanceof HTMLInputElement && !field.validity.valid
+        || name === 'phone' && value.replace(/\D/g, '').length < 10) nextFieldErrors[name] = message;
+    }
+    setFieldErrors(nextFieldErrors);
+    const firstInvalid = requiredFields.find(([name]) => nextFieldErrors[name])?.[0];
+    if (firstInvalid) {
+      setError('Check the highlighted fields and try again.');
+      (form.elements.namedItem(firstInvalid) as HTMLElement | null)?.focus();
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     setError('');
-    const data = new FormData(e.currentTarget);
+    const data = new FormData(form);
     try {
       if (savedCardOrder) { location.href = `/payment-return?order=${encodeURIComponent(savedCardOrder)}`; return; }
       const payload = JSON.stringify({ items: cart, email: data.get('email'), phone: data.get('phone'), firstName: data.get('firstName'), lastName: data.get('lastName'), address: data.get('address'), city: data.get('city'), province: data.get('province'), postal: data.get('postal'), note: data.get('note'), payment });
@@ -2198,6 +2243,7 @@ function CheckoutView({
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Order could not be created');
       const order = result as Order;
+      onComplete();
       if (payment === 'safepay') {
         setSavedCardOrder(order.token);
         sessionStorage.setItem('zyra-pending-card-order', order.token);
@@ -2209,11 +2255,11 @@ function CheckoutView({
       }
       sessionStorage.removeItem('zyra-checkout-attempt');
       trackPurchase(order);
-      onComplete();
       location.href = `/order-confirmation/${order.token}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -2237,7 +2283,7 @@ function CheckoutView({
         </a>
         <p>Secure checkout</p>
       </header>
-      <form onSubmit={submit} className="checkout-layout">
+      <form onSubmit={submit} onInput={(event) => { const name = (event.target as HTMLInputElement).name; if (name && fieldErrors[name]) setFieldErrors((current) => { const next = { ...current }; delete next[name]; return next; }); }} className="checkout-layout" noValidate aria-busy={busy}>
         <section>
           <a className="inline-link" href="/collections">← Continue shopping</a>
           <h1>Make it yours.</h1>
@@ -2254,7 +2300,10 @@ function CheckoutView({
                 name="email"
                 autoComplete="email"
                 placeholder="you@example.com"
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? 'checkout-email-error' : undefined}
               />
+              {fieldErrors.email && <small className="field-error" id="checkout-email-error">{fieldErrors.email}</small>}
             </label>
             <label className="wide">
               Mobile phone
@@ -2264,30 +2313,37 @@ function CheckoutView({
                 name="phone"
                 autoComplete="tel"
                 placeholder="03XX XXX XXXX"
+                aria-invalid={Boolean(fieldErrors.phone)}
+                aria-describedby={fieldErrors.phone ? 'checkout-phone-error' : undefined}
               />
+              {fieldErrors.phone && <small className="field-error" id="checkout-phone-error">{fieldErrors.phone}</small>}
             </label>
           </div>
           <p className="eyebrow form-section">02 / Delivery</p>
           <div className="form-grid">
             <label>
               First name
-              <input required name="firstName" autoComplete="given-name" />
+              <input required name="firstName" autoComplete="given-name" aria-invalid={Boolean(fieldErrors.firstName)} aria-describedby={fieldErrors.firstName ? 'checkout-first-name-error' : undefined} />
+              {fieldErrors.firstName && <small className="field-error" id="checkout-first-name-error">{fieldErrors.firstName}</small>}
             </label>
             <label>
               Last name
-              <input required name="lastName" autoComplete="family-name" />
+              <input required name="lastName" autoComplete="family-name" aria-invalid={Boolean(fieldErrors.lastName)} aria-describedby={fieldErrors.lastName ? 'checkout-last-name-error' : undefined} />
+              {fieldErrors.lastName && <small className="field-error" id="checkout-last-name-error">{fieldErrors.lastName}</small>}
             </label>
             <label className="wide">
               Address
-              <input required name="address" autoComplete="street-address" placeholder="House / flat, street and area" />
+              <input required name="address" autoComplete="street-address" placeholder="House / flat, street and area" aria-invalid={Boolean(fieldErrors.address)} aria-describedby={fieldErrors.address ? 'checkout-address-error' : undefined} />
+              {fieldErrors.address && <small className="field-error" id="checkout-address-error">{fieldErrors.address}</small>}
             </label>
             <label>
               City
-              <input required name="city" autoComplete="address-level2" placeholder="Type your city" />
+              <input required name="city" autoComplete="address-level2" placeholder="Type your city" aria-invalid={Boolean(fieldErrors.city)} aria-describedby={fieldErrors.city ? 'checkout-city-error' : undefined} />
+              {fieldErrors.city && <small className="field-error" id="checkout-city-error">{fieldErrors.city}</small>}
             </label>
             <label>
               Province
-              <select name="province" required defaultValue="" autoComplete="address-level1">
+              <select name="province" required defaultValue="" autoComplete="address-level1" aria-invalid={Boolean(fieldErrors.province)} aria-describedby={fieldErrors.province ? 'checkout-province-error' : undefined}>
                 <option value="" disabled>Choose province / region</option>
                 <option>Punjab</option>
                 <option>Sindh</option>
@@ -2297,6 +2353,7 @@ function CheckoutView({
                 <option>Azad Jammu and Kashmir</option>
                 <option>Gilgit-Baltistan</option>
               </select>
+              {fieldErrors.province && <small className="field-error" id="checkout-province-error">{fieldErrors.province}</small>}
             </label>
             <label>
               Postal code (optional)
@@ -2354,7 +2411,7 @@ function CheckoutView({
             </p>
           )}
           <button className="dark-button place-order" disabled={busy || hasUnavailableItems}>
-            {busy ? 'Please wait…' : savedCardOrder ? 'Check saved order' : `${payment === 'safepay' ? 'Continue to secure payment' : payment === 'cod' ? 'Place cash-on-delivery order' : 'Place order'} · ${money(total)}`}{' '}
+            {busy ? 'Placing your order…' : savedCardOrder ? 'Check saved order' : `${payment === 'safepay' ? 'Continue to secure payment' : payment === 'cod' ? 'Place cash-on-delivery order' : 'Place order'} · ${money(total)}`}{' '}
             <ArrowRight />
           </button>
           <p className="checkout-note">

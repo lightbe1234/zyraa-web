@@ -722,6 +722,13 @@ button:focus-visible {
   flex-direction: column;
   animation: slideIn 0.28s ease-out;
 }
+.menu-drawer {
+  width: min(480px, 94vw);
+  height: 100dvh;
+  overflow: hidden;
+  border-right: 1px solid rgba(17, 17, 17, 0.16);
+  box-shadow: 20px 0 70px rgba(0, 0, 0, 0.18);
+}
 .cart-overlay .drawer {
   margin-left: auto;
 }
@@ -734,6 +741,134 @@ button:focus-visible {
   border-bottom: 1px solid var(--line);
   font: 11px var(--font-geist-mono);
   letter-spacing: 0.12em;
+}
+.menu-drawer-head {
+  min-height: 92px;
+  padding: 0 28px 0 30px;
+}
+.menu-drawer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.menu-drawer-wordmark {
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+.menu-drawer-wordmark sup {
+  margin-left: 2px;
+  font: 7px var(--font-geist-mono);
+  vertical-align: top;
+}
+.menu-drawer-context {
+  color: var(--muted);
+  font: 9px var(--font-geist-mono);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.menu-brand-ribbon {
+  position: relative;
+  min-height: 82px;
+  padding: 17px 62px 17px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--paper);
+  background: linear-gradient(115deg, #161814, #262920);
+  border-bottom: 1px solid var(--ink);
+}
+.menu-brand-ribbon span {
+  color: rgba(244, 242, 236, 0.58);
+  font: 8px var(--font-geist-mono);
+  letter-spacing: 0.16em;
+}
+.menu-brand-ribbon p {
+  margin: 0;
+  font-size: clamp(23px, 5vw, 29px);
+  line-height: 1.15;
+  font-weight: 550;
+  letter-spacing: -0.015em;
+}
+.menu-brand-ribbon p em {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  color: #d1d5c4;
+}
+.menu-brand-ribbon::after {
+  content: '';
+  position: absolute;
+  right: -26px;
+  top: -55px;
+  width: 145px;
+  height: 190px;
+  border: 1px solid rgba(244, 242, 236, 0.1);
+  transform: rotate(32deg);
+  pointer-events: none;
+}
+#our-story { scroll-margin-top: 110px; }
+.menu-brand-ribbon i {
+  position: absolute;
+  right: 24px;
+  color: rgba(244, 242, 236, 0.22);
+  font: 44px/1 var(--font-geist-sans);
+  font-style: normal;
+}
+.menu-drawer-control {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.menu-drawer-control:hover,
+.menu-drawer-control:focus-visible {
+  color: var(--paper);
+  background: var(--ink);
+  transform: rotate(3deg);
+  outline: none;
+}
+.menu-drawer-body {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px 18px 0;
+}
+.menu-drawer-head,
+.menu-brand-ribbon,
+.menu-drawer .drawer-foot {
+  flex-shrink: 0;
+}
+.menu-signature {
+  flex-shrink: 0;
+  margin: 12px 30px 18px;
+  color: rgba(25, 29, 22, 0.08);
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: clamp(62px, 18vw, 104px);
+  font-weight: 800;
+  letter-spacing: -0.075em;
+  line-height: 0.85;
+  user-select: none;
+}
+.menu-signature span {
+  margin-left: 7px;
+  font-size: 18px;
+  vertical-align: top;
+}
+.menu-signature small {
+  display: block;
+  margin-top: 12px;
+  font: 8px var(--font-geist-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .drawer-links {
   display: flex;
@@ -754,6 +889,88 @@ button:focus-visible {
   text-transform: uppercase;
   cursor: pointer;
 }
+.menu-drawer .drawer-links > a,
+.menu-drawer .drawer-links > button {
+  min-height: 76px;
+  padding: 0 30px;
+  font-size: clamp(21px, 2.1vw, 27px);
+  font-weight: 500;
+  gap: 16px;
+  border-bottom-color: rgba(25, 29, 22, 0.1);
+  letter-spacing: -0.035em;
+  text-transform: none;
+  transition: background 180ms ease, color 180ms ease, padding 180ms ease;
+}
+.menu-drawer .drawer-links > a > span,
+.menu-drawer .drawer-links > button > span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  overflow-wrap: anywhere;
+}
+.menu-drawer .drawer-links small {
+  flex: 0 0 20px;
+  color: var(--muted);
+  font: 9px var(--font-geist-mono);
+  letter-spacing: 0.08em;
+}
+.menu-drawer .drawer-links > a:hover,
+.menu-drawer .drawer-links > button:hover,
+.menu-drawer .drawer-links > a:focus-visible,
+.menu-drawer .drawer-links > button:focus-visible {
+  padding-left: 36px;
+  color: var(--paper);
+  background: var(--ink);
+  outline: none;
+}
+.menu-drawer .drawer-links > a:hover small,
+.menu-drawer .drawer-links > button:hover small,
+.menu-drawer .drawer-links > a:focus-visible small,
+.menu-drawer .drawer-links > button:focus-visible small {
+  color: rgba(244, 242, 236, 0.58);
+}
+.menu-drawer .drawer-links > a svg,
+.menu-drawer .drawer-links > button svg {
+  flex: 0 0 auto;
+  transition: transform 180ms ease;
+}
+.menu-drawer .drawer-links > a:hover > svg,
+.menu-drawer .drawer-links > button:hover > svg,
+.menu-drawer .drawer-links > a:focus-visible > svg,
+.menu-drawer .drawer-links > button:focus-visible > svg {
+  transform: translateX(4px);
+}
+.menu-drawer .menu-featured-link {
+  background: rgba(17, 17, 17, 0.035);
+}
+.menu-drawer-secondary {
+  padding: 20px 30px;
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.menu-drawer-secondary a {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  padding: 0;
+  min-height: 44px;
+  border: 0;
+  text-transform: none;
+}
+.menu-drawer-secondary a:hover,
+.menu-drawer-secondary a:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+.menu-drawer-secondary svg {
+  width: 14px;
+}
 .drawer-links svg {
   width: 17px;
 }
@@ -762,6 +979,33 @@ button:focus-visible {
   padding: 24px;
   font: 11px var(--font-geist-mono);
   line-height: 2;
+}
+.menu-drawer .drawer-foot {
+  padding: 20px 30px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  line-height: 1.65;
+}
+.menu-drawer .drawer-foot > span {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.menu-drawer .drawer-foot > a {
+  display: inline-block;
+  margin-top: 3px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.menu-drawer .drawer-foot p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .search-overlay {
   background: rgba(244, 242, 236, 0.96);
@@ -863,6 +1107,7 @@ button:focus-visible {
 .mini-cart small {
   color: var(--muted);
 }
+.mini-cart-unavailable > span { grid-column: 1 / -1; }
 .panel-total {
   margin-top: auto;
   padding: 20px;
@@ -3298,7 +3543,7 @@ button:focus-visible {
     display: none;
   }
   .catalog-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .product-page {
     grid-template-columns: 1.35fr 1fr;
@@ -3322,7 +3567,56 @@ button:focus-visible {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+@media (max-width: 800px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 760px) {
+  .menu-drawer {
+    width: 100%;
+    max-width: none;
+    border-right: 0;
+    box-shadow: none;
+  }
+  .menu-drawer-head {
+    min-height: 78px;
+    padding-inline: 20px;
+  }
+  .menu-brand-ribbon {
+    min-height: 72px;
+    padding: 14px 54px 14px 20px;
+  }
+  .menu-brand-ribbon i {
+    right: 18px;
+    font-size: 38px;
+  }
+  .menu-drawer-control {
+    width: 40px;
+    height: 40px;
+  }
+  .menu-drawer .drawer-links > a,
+  .menu-drawer .drawer-links > button {
+    min-height: 68px;
+    padding-inline: 20px;
+    font-size: clamp(20px, 6.5vw, 26px);
+  }
+  .menu-drawer .drawer-links > a > span,
+  .menu-drawer .drawer-links > button > span {
+    gap: 14px;
+  }
+  .menu-drawer .drawer-links > a:hover,
+  .menu-drawer .drawer-links > button:hover,
+  .menu-drawer .drawer-links > a:focus-visible,
+  .menu-drawer .drawer-links > button:focus-visible {
+    padding-left: 24px;
+  }
+  .menu-drawer-secondary {
+    padding: 15px 20px;
+  }
+  .menu-drawer .drawer-foot {
+    padding: 16px 20px max(18px, env(safe-area-inset-bottom));
+  }
   .announcement {
     grid-template-columns: 30px 1fr 30px;
     font-size: 8px;

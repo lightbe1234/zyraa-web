@@ -59,6 +59,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
   const inBag = cart.filter((entry) => entry.slug === product.slug).reduce((total, entry) => total + entry.qty, 0);
   const sameVariant = cart.find((entry) => entry.slug === product.slug && entry.size === size && entry.color === color)?.qty || 0;
   const available = Math.max(0, Math.min(10 - sameVariant, product.stock - inBag));
+  const buyNowAvailable = Math.max(0, Math.min(10, product.stock));
   const soldOut = product.stock <= 0;
   const onSale = Boolean(product.compareAt && product.compareAt > product.price);
   const salePercent = onSale ? Math.round((1 - product.price / product.compareAt!) * 100) : 0;
@@ -105,7 +106,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
     if (purchase.current) observer.observe(purchase.current);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { setQty((current) => Math.max(1, Math.min(current, available))); }, [available]);
+  useEffect(() => { setQty((current) => Math.max(1, Math.min(current, buyNowAvailable))); }, [buyNowAvailable]);
 
   const submit = (buyNow = false) => {
     if (busy || !ready) return;
@@ -115,7 +116,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
       sizes.current?.querySelector<HTMLButtonElement>('button[data-size]')?.focus({ preventScroll: true });
       return;
     }
-    if (soldOut || qty > available) { setError('This quantity is unavailable. Check the pieces already in your bag.'); return; }
+    if (soldOut || qty > (buyNow ? buyNowAvailable : available)) { setError('This quantity is unavailable. Check the pieces already in your bag.'); return; }
     setError(''); setBusy(true);
     const added = add({ slug: product.slug, color, size, qty }, buyNow);
     if (!added) setError('We could not update your bag. Please check the message and try again.');
@@ -169,11 +170,11 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
             <div className="pdp-quantity" role="group" aria-label="Quantity">
               <button type="button" aria-label="Decrease quantity" disabled={qty <= 1 || soldOut} onClick={() => setQty(qty - 1)}><Minus /></button>
               <output aria-live="polite">{qty}</output>
-              <button type="button" aria-label="Increase quantity" disabled={qty >= available || soldOut} onClick={() => setQty(qty + 1)}><Plus /></button>
+              <button type="button" aria-label="Increase quantity" disabled={qty >= buyNowAvailable || soldOut} onClick={() => setQty(qty + 1)}><Plus /></button>
             </div>
             <button className="pdp-primary" type="button" disabled={!ready || soldOut || available === 0 || busy} onClick={() => submit()}>{soldOut ? 'Sold out' : available === 0 ? 'Stock already in bag' : 'Add to bag'}<ShoppingBag aria-hidden="true" /></button>
           </div>
-          <button className="pdp-secondary" type="button" disabled={!ready || soldOut || available === 0 || busy} onClick={() => submit(true)}>{busy ? 'Opening checkout…' : 'Buy now'}<ArrowRight aria-hidden="true" /></button>
+          <button className="pdp-secondary" type="button" disabled={!ready || soldOut || buyNowAvailable === 0 || busy} onClick={() => submit(true)}>{busy ? 'Opening checkout…' : 'Buy now'}<ArrowRight aria-hidden="true" /></button>
           {error && <p id="pdp-purchase-error" className="pdp-error" role="alert">{error}</p>}
           <p className="pdp-checkout-note"><CreditCard aria-hidden="true" />Cash on delivery or bank transfer at checkout</p>
         </div>
