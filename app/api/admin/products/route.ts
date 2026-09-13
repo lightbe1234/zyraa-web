@@ -1,6 +1,7 @@
 import { assertSameOrigin, consumeRateLimit, requireAdmin } from '@/lib/security';
 import { getCatalog, saveProduct, updateProduct } from '@/lib/supabase-store';
 import type { Product } from '@/lib/catalog';
+import { safeWebUrl } from '@/lib/safe-url';
 
 export const runtime = 'nodejs';
 
@@ -10,15 +11,20 @@ function validateProduct(value: Partial<Product>): Product {
     throw new Error('Complete all required product fields.');
   }
   if (!/^[a-z0-9-]+$/.test(value.slug || '')) throw new Error('Slug can only contain lowercase letters, numbers, and hyphens.');
-  if (!Number.isInteger(value.price) || Number(value.price) < 0) throw new Error('Price must be a valid amount.');
+  if (!Number.isSafeInteger(value.price) || Number(value.price) < 0 || Number(value.price) > 100000000) throw new Error('Price must be a valid amount.');
+  if (value.compareAt != null && (!Number.isSafeInteger(value.compareAt) || value.compareAt < 0 || value.compareAt > 100000000)) throw new Error('Compare price must be a valid amount.');
   if (!Number.isInteger(value.stock) || Number(value.stock) < 0) throw new Error('Stock must be zero or more.');
   if (!Array.isArray(value.colors) || !value.colors.length || !Array.isArray(value.sizes) || !value.sizes.length) {
     throw new Error('Add at least one color and size.');
   }
+  if ([...value.colors, ...value.sizes].some(v => typeof v !== 'string' || !v.trim() || v.length > 80) || value.colors.length > 30 || value.sizes.length > 30) throw new Error('Use valid colour and size labels.');
+  if (value.name!.length > 200 || value.description!.length > 20000 || value.slug!.length > 120) throw new Error('Product text is too long.');
   const images = Array.isArray(value.images) ? value.images.map((image) => String(image).trim()).filter(Boolean) : [];
   if (images.length < 1 || images.length > 4) throw new Error('Upload 1 to 4 product images.');
-  if (images.some((image) => image.length > 2048)) throw new Error('One of the product image URLs is invalid.');
+  if (images.some((image) => !safeWebUrl(image))) throw new Error('One of the product image URLs is invalid.');
   return {
+    updatedAt: value.updatedAt,
+    active: value.active !== false,
     slug: value.slug!,
     name: value.name!,
     category: value.category!,
@@ -55,6 +61,7 @@ export async function POST(request: Request) {
     await saveProduct(product, actor, body.originalSlug);
     return Response.json(product, { status: body.originalSlug ? 200 : 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.includes('PRODUCT_CHANGED')) return Response.json({ error: 'This product or its stock changed while you were editing. Close and reopen the form to load the latest version.' }, { status: 409 });
     return Response.json({ error: error instanceof Error ? error.message : 'Product could not be saved.' }, { status: 400 });
   }
 }

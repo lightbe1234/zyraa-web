@@ -2,6 +2,7 @@
 .home-page > :is(.product-section, .collection-discovery, .trust-section) {
   padding-block: clamp(36px, 5vw, 64px);
 }
+.home-page > .editorial-grid { padding-block: clamp(16px, 2vw, 24px); }
 .home-page > .trust-section {
   margin-top: clamp(16px, 2.5vw, 28px);
   margin-bottom: clamp(36px, 5vw, 56px);
@@ -29,6 +30,14 @@
 .home-page .collection-card-kicker { padding: 10px 0 0 !important; font: 500 12px/1.5 var(--font-body), sans-serif !important; text-transform: none; letter-spacing: 0; color: #fff; }
 .home-page .collection-visual::before { background: linear-gradient(180deg, transparent 35%, #0009 100%); }
 .home-page .product-meta > p:first-child { font-size: 10px; min-height: 0; margin-bottom: 6px; }
+.home-page .product-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.home-page .product-card .product-meta { padding-inline: 14px; padding-bottom: 12px; }
+.home-page .product-card .product-card-media { border: 0; border-radius: 0; }
 .home-page .product-meta h3 { min-height: 2.6em; line-height: 1.3; font-size: 16px; }
 .home-page .product-card .product-card-price { font-size: 14px; }
 .home-page .product-card .product-card-price del { font-size: 11px; }
@@ -64,6 +73,7 @@
   .home-page .collection-visual { aspect-ratio: 4 / 3; }
   .home-page .collection-caption h3 { font-size: 26px; }
   .home-page .product-card .product-meta > p:first-child { font-size: 10px; min-height: 2.8em; line-height: 1.4; }
+  .home-page .product-card .product-meta { padding-inline: 11px; padding-bottom: 10px; }
   .home-page .product-card .product-meta h3 { font-size: 15px; min-height: 2.6em; }
   .home-page .product-card .product-card-options { flex-direction: column; gap: 2px; min-height: 3.2em; }
   .home-page .trust-heading { flex-wrap: wrap; }

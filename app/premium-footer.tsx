@@ -15,8 +15,9 @@ const socialPaths = {
 
 export function PremiumFooter({ settings, collections }: { settings: StoreSettings; collections: Category[] }) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const uniqueCollections = collections.filter((item, index, all) => all.findIndex((candidate) => candidate.slug === item.slug) === index);
   const groups = [
-    { key: 'shop', title: 'Shop collections', links: [...collections.map((item) => ({ label: item.name, href: `/collections/${item.slug}` })), { label: 'Shop all', href: '/collections' }] },
+    { key: 'shop', title: 'Shop collections', links: [...uniqueCollections.map((item) => ({ label: item.name, href: `/collections/${item.slug}` })), { label: 'Shop all', href: '/collections' }] },
     { key: 'help', title: 'Customer help', links: [{ label: 'Track your order', href: '/track-order' }, { label: 'Delivery information', href: '/pages/shipping' }, { label: 'Returns & size exchanges', href: '/pages/returns' }, { label: 'Sizing & shopping FAQs', href: '/pages/faq' }, { label: 'Fabric & care guide', href: '/pages/fabric-care' }, { label: 'Contact ZYRA', href: '/pages/contact' }] },
     { key: 'policies', title: 'Policies', links: [{ label: 'Terms of sale', href: '/pages/terms' }, { label: 'Privacy policy', href: '/pages/privacy' }, { label: 'Website terms', href: '/pages/website-terms' }] },
   ];
@@ -50,7 +51,7 @@ export function PremiumFooter({ settings, collections }: { settings: StoreSettin
             <span><small>0{index + 1}</small>{group.title}</span><i>+</i>
           </button>
           <h3><small>0{index + 1}</small>{group.title}</h3>
-          <ul>{group.links.map((link) => <li key={link.label}><a href={link.href}>{link.label}<ArrowRight /></a></li>)}</ul>
+          <ul>{group.links.map((link, linkIndex) => <li key={`${group.key}-${link.href}-${linkIndex}`}><a href={link.href}>{link.label}<ArrowRight /></a></li>)}</ul>
         </div>)}
       </section>
 

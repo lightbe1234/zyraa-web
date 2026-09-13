@@ -1,4 +1,5 @@
 export type Product = {
+  updatedAt?: string;
   customDetails?: import('./custom-shirts').CustomDetails;
   slug: string;
   name: string;

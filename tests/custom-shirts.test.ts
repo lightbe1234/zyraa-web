@@ -8,6 +8,12 @@ test('custom quotes reject inactive options and keep integer prices', () => {
   const options = ['colour','fabric','print'].map((kind,i)=>({id:kind,kind,price:[10000,149000,35000][i],active:true})) as CustomOption[];
   const ids={colour:'colour',fabric:'fabric',print:'print'};
   assert.equal(customQuote(options,ids),194000);
+  const placements = [
+    { id: 'front-centre', kind: 'front-position', price: 35000, active: true },
+    { id: 'front-left', kind: 'front-position', price: 30000, active: true },
+  ] as CustomOption[];
+  assert.equal(customQuote([...options, ...placements], { ...ids, frontPositions: ['front-centre', 'front-left'] }), 259000);
+  assert.throws(() => customQuote([...options, ...placements], { ...ids, frontPositions: ['front-centre', 'front-centre'] }), /once/);
   assert.throws(()=>customQuote(options,{...ids,fabric:'unknown'}));
   options[0].active=false; assert.throws(()=>customQuote(options,ids));
 });
@@ -23,8 +29,18 @@ test('custom orders freeze server prices and retain artwork and instructions tra
   await db.exec(await readFile(new URL('../supabase/migrations/202609100001_custom_shirts.sql',import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/202609100002_custom_shirt_two_sided_art.sql',import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/202609100003_custom_shirt_positions.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202609130002_atomic_custom_placements.sql',import.meta.url),'utf8'));
   await assert.rejects(db.query("select create_custom_shirt_design('black','cotton','front','front-centre','','M','', $1)",[JSON.stringify({front:'missing.png',back:null})]),/INVALID_ARTWORK/);
   await db.exec("insert into storage.objects values('custom-artwork','front.png'),('custom-artwork','back.png');");
+  const multi = (await db.query<{slug:string}>("select create_custom_shirt_design_multi('blue','cotton','both',array['front-centre','front-left-chest','front-right-chest'],array['back-centre','back-upper','back-neck'],'M','Multiple placements',$1) as slug",[JSON.stringify({front:'front.png',back:'back.png'})])).rows[0].slug;
+  const multiRow = (await db.query<{price:number;details:{frontPositions:string[];backPositions:string[]}}>('select p.price,d.details from products p join custom_shirt_designs d using(slug) where slug=$1',[multi])).rows[0];
+  assert.equal(multiRow.price,339000);
+  assert.equal(multiRow.details.frontPositions.length,3);
+  assert.equal(multiRow.details.backPositions.length,3);
+  const before = (await db.query<{n:number}>('select count(*)::int n from products')).rows[0].n;
+  await assert.rejects(db.query("select create_custom_shirt_design_multi('blue','cotton','front',array['front-centre','front-centre'],array[]::text[],'M','',$1)",[JSON.stringify({front:'front.png',back:null})]),/DUPLICATE_PLACEMENTS/);
+  await assert.rejects(db.query("select create_custom_shirt_design_multi('blue','cotton','front',array['front-centre','missing'],array[]::text[],'M','',$1)",[JSON.stringify({front:'front.png',back:null})]),/INVALID_FRONT_POSITION/);
+  assert.equal((await db.query<{n:number}>('select count(*)::int n from products')).rows[0].n,before);
   await assert.rejects(db.query("select create_custom_shirt_design('blue','cotton','both','front-centre','back-centre','M','Centre the print',$1) as slug",[JSON.stringify({front:'front.png',back:null})]),/BACK_ARTWORK_REQUIRED/);
   const slug=(await db.query<{slug:string}>("select create_custom_shirt_design('blue','cotton','both','front-centre','back-centre','M','Centre the print',$1) as slug",[JSON.stringify({front:'front.png',back:'back.png'})])).rows[0].slug;
   await db.exec("update custom_shirt_options set price=199000 where id='cotton';");

@@ -24,6 +24,12 @@ function itemName(slug: string) {
   return slug.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function placementLine(details: NonNullable<StoreOrder['items'][number]['customDetails']>) {
+  const front = details.frontPositions?.length ? details.frontPositions : details.frontPosition ? [details.frontPosition] : [];
+  const back = details.backPositions?.length ? details.backPositions : details.backPosition ? [details.backPosition] : [];
+  return [front.length ? `Front: ${front.join(' + ')}` : '', back.length ? `Back: ${back.join(' + ')}` : ''].filter(Boolean).join(' · ');
+}
+
 export async function sendOrderPlacedEmail(order: StoreOrder) {
   const user = process.env.GMAIL_SMTP_USER?.trim();
   const appPassword = process.env.GMAIL_APP_PASSWORD?.replaceAll(' ', '');
@@ -43,13 +49,13 @@ export async function sendOrderPlacedEmail(order: StoreOrder) {
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid #e8e6df">
         <strong>${escapeHtml(itemName(item.slug))}</strong><br>
-        <span style="color:#706e67;font-size:13px">${escapeHtml(item.color)} · Size ${escapeHtml(item.size)} · Qty ${item.qty}</span>
+        <span style="color:#706e67;font-size:13px">${escapeHtml(item.color)} · Size ${escapeHtml(item.size)} · Qty ${item.qty}${item.customDetails ? `<br>${escapeHtml(placementLine(item.customDetails))}` : ''}</span>
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #e8e6df;text-align:right;white-space:nowrap">${formatMoney(item.lineTotal)}</td>
     </tr>`).join('');
 
   const plainItems = order.items.map((item) =>
-    `- ${itemName(item.slug)} | ${item.color} | Size ${item.size} | Qty ${item.qty} | ${formatMoney(item.lineTotal)}`,
+    `- ${itemName(item.slug)} | ${item.color} | Size ${item.size} | Qty ${item.qty}${item.customDetails ? ` | ${placementLine(item.customDetails)}` : ''} | ${formatMoney(item.lineTotal)}`,
   ).join('\n');
 
   await transporter.sendMail({

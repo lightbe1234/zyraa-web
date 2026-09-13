@@ -27,6 +27,7 @@ const rows = products.map((product) => ({
   description: product.description,
 }));
 
-const { error } = await client.from('products').upsert(rows, { onConflict: 'slug' });
+// Seeding must never overwrite merchant edits or restore old inventory.
+const { error } = await client.from('products').upsert(rows, { onConflict: 'slug', ignoreDuplicates: true });
 if (error) throw error;
 console.log(`Seeded ${rows.length} ZYRA products.`);

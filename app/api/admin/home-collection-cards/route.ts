@@ -1,6 +1,7 @@
 import { assertSameOrigin, consumeRateLimit, requireAdmin } from '@/lib/security';
 import { getHomeCollectionCards, updateHomeCollectionCard } from '@/lib/supabase-store';
 import type { HomeCollectionCard } from '@/lib/home-collection-cards';
+import { safeWebUrl } from '@/lib/safe-url';
 
 export const runtime = 'nodejs';
 
@@ -27,7 +28,7 @@ export async function PATCH(request: Request) {
       sortOrder: Number.isInteger(body.sortOrder) ? body.sortOrder! : 0,
       enabled: body.enabled !== false,
     };
-    const safeImage = card.image.startsWith('/') || /^https:\/\//i.test(card.image);
+    const safeImage = safeWebUrl(card.image);
     if (!/^[a-z0-9-]+$/.test(card.key) || !/^[a-z0-9-]+$/.test(card.collectionSlug)
       || card.eyebrow.length < 1 || card.eyebrow.length > 80
       || card.title.length < 1 || card.title.length > 80

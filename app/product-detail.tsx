@@ -7,6 +7,7 @@ import type { StoreSettings } from '@/lib/supabase-store';
 import type { BagSelection } from '@/lib/product-purchase';
 import { emptyProductDetails, type ProductExperience } from '@/lib/product-experience-types';
 import { formatGuideValue, getSizeGuide } from '@/lib/size-guide';
+import { StoreImage } from './store-image';
 
 const colourSwatches: Record<string, string> = {
   beige: '#cbb89b', black: '#222222', 'washed black': '#494744', white: '#faf9f5',
@@ -95,7 +96,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
       finally { pending = false; }
     };
     void heartbeat();
-    const timer = setInterval(heartbeat, 3_000);
+    const timer = setInterval(heartbeat, 15_000);
     document.addEventListener('visibilitychange', heartbeat);
     return () => { stopped = true; clearInterval(timer); document.removeEventListener('visibilitychange', heartbeat); };
   }, [endpoint]);
@@ -129,7 +130,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
           <div ref={track} className="pdp-image-track" onScroll={(event) => setActive(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}>
             {gallery.map((src, index) => <button key={`${src}-${index}`} type="button" tabIndex={active === index ? 0 : -1}
               onClick={() => { setActive(index); setModal('zoom'); }} aria-label={`Enlarge ${product.name}, photo ${index + 1}`}>
-              <img src={src} alt={`${product.name} — photo ${index + 1}`} loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'auto'} />
+              <StoreImage src={src} width={1000} height={1333} sizes="(max-width: 800px) 100vw, 60vw" alt={`${product.name} — photo ${index + 1}`} loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'auto'} />
             </button>)}
           </div>
           {onSale && !soldOut && <span className="pdp-sale-label">Save {salePercent}%</span>}

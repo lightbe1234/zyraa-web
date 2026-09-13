@@ -1,6 +1,5 @@
 import { cache } from 'react';
 import { getCatalog, getCollections } from './supabase-store';
-import { products, categories } from './catalog';
 import { slugify } from './seo';
 
 // Share one catalog snapshot between metadata and the page during a request.
@@ -17,7 +16,6 @@ export const readSeoCatalog = cache(async () => {
     }
     return { catalog, collections, available: true };
   } catch {
-    // Keep the preview usable, but never index seeded demo data during an outage.
-    return { catalog: products, collections: categories, available: false };
+    return { catalog: [], collections: [], available: false };
   }
 });

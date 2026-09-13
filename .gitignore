@@ -41,6 +41,7 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/supabase/.temp/
 /data/*.json
 /data/*.sqlite*
 

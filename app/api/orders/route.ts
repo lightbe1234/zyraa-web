@@ -1,9 +1,11 @@
 import { createOrder, findOrderByContact, findOrderByToken } from '@/lib/supabase-store';
 import { assertSameOrigin, consumeRateLimit } from '@/lib/security';
 import { safepayReady } from '@/lib/safepay';
-import { sendOrderPlacedEmail } from '@/lib/order-email';
+import { notifyOrder } from '@/lib/order-notifications';
+import { after } from 'next/server';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   try {
@@ -25,8 +27,10 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     if (!(await consumeRateLimit(request, 'checkout', 12, 600))) return Response.json({ error: 'Too many checkout attempts.' }, { status: 429 });
     const key = request.headers.get('idempotency-key');
-    if (!key || key.length < 12) return Response.json({ error: 'Missing idempotency key' }, { status: 400 });
-    const body = (await request.json()) as {
+    if (!key || !/^[a-zA-Z0-9_-]{12,128}$/.test(key)) return Response.json({ error: 'Invalid idempotency key' }, { status: 400 });
+    const rawBody = await request.text();
+    if (rawBody.length > 30000) return Response.json({ error: 'Request too large.' }, { status: 413 });
+    const body = JSON.parse(rawBody) as {
       items: Array<{ slug: string; size: string; color: string; qty: number }>;
       email: string;
       phone: string;
@@ -39,6 +43,11 @@ export async function POST(request: Request) {
       postal?: string;
       note?: string;
     };
+    if (!body || !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 50 || body.items.some(item => !item || typeof item.slug !== 'string' || !/^[a-z0-9-]{1,120}$/.test(item.slug) || typeof item.size !== 'string' || typeof item.color !== 'string' || item.size.length > 80 || item.color.length > 80 || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 10)) return Response.json({ error: 'Invalid items in your bag.' }, { status: 400 });
+    const textLimits = { email: 254, phone: 30, firstName: 100, lastName: 100, address: 500, city: 100, province: 100, postal: 30, note: 1200 } as const;
+    for (const field of Object.keys(textLimits) as Array<keyof typeof textLimits>) {
+      if (body[field] != null && (typeof body[field] !== 'string' || body[field]!.length > textLimits[field])) return Response.json({ error: `Invalid ${field}.` }, { status: 400 });
+    }
     if (!/^\S+@\S+\.\S+$/.test(String(body.email || '')))
       return Response.json({ error: 'Valid email required' }, { status: 400 });
     if (String(body.phone || '').replace(/\D/g, '').length < 10)
@@ -60,14 +69,7 @@ export async function POST(request: Request) {
       payment: body.payment,
       idempotencyKey: key,
     });
-    try {
-      const notification = await sendOrderPlacedEmail(order);
-      if (!notification.sent && notification.reason === 'not-configured') {
-        console.warn('Order email notification is not configured.');
-      }
-    } catch {
-      console.error('Order email notification could not be sent.');
-    }
+    after(() => notifyOrder(order));
     return Response.json(order, { status: 201 });
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'INVALID_REQUEST';

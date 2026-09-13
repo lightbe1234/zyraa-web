@@ -1,6 +1,7 @@
 import type { Category, Product } from './catalog';
 import type { HomeCollectionCard } from './home-collection-cards';
 import { getSupabaseAdmin } from './supabase-server';
+import { isMissingDatabaseObject } from './supabase-errors';
 import { signedDetails } from './custom-shirts-server';
 import type { CustomDetails } from './custom-shirts';
 
@@ -100,6 +101,7 @@ function productFromRow(row: Record<string, unknown>): Product {
   const images = storedImages.length ? storedImages : [String(row.image), String(row.alternate)].filter(Boolean);
   return {
     slug: String(row.slug), name: String(row.name), category: String(row.category), collection: String(row.collection),
+    updatedAt: String(row.updated_at),
     price: Number(row.price), compareAt: row.compare_at == null ? undefined : Number(row.compare_at), image: String(row.image),
     alternate: String(row.alternate), images, rating: Number(row.rating), reviews: Number(row.reviews), stock: Number(row.stock),
     colors: row.colors as string[], sizes: row.sizes as string[], featured: Boolean(row.featured), newArrival: Boolean(row.new_arrival),
@@ -133,9 +135,17 @@ export async function getCatalog({ includeArchived = false } = {}) {
 }
 
 export async function saveProduct(product: Product, actorEmail: string, originalSlug?: string) {
-  const { error } = await getSupabaseAdmin().rpc('admin_upsert_product', {
+  const client = getSupabaseAdmin();
+  let { error } = await client.rpc('admin_save_product_checked', {
     p_product: product, p_original_slug: originalSlug || null, p_actor_email: actorEmail,
   });
+  // Keep the admin editor usable while an older production database is being
+  // migrated. The checked RPC remains the normal path once it is available.
+  if (error && isMissingDatabaseObject(error)) {
+    ({ error } = await client.rpc('admin_upsert_product', {
+      p_product: product, p_original_slug: originalSlug || null, p_actor_email: actorEmail,
+    }));
+  }
   if (error) throw new Error(error.message);
   return product;
 }

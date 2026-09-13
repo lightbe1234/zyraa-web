@@ -6,9 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/next-local.mjs dev",
+    "build": "node scripts/next-local.mjs build",
+    "start": "node scripts/next-local.mjs start",
     "lint": "oxlint",
     "format": "oxfmt",
     "typecheck": "tsc --noEmit",

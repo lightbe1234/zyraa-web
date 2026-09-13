@@ -45,6 +45,8 @@ import { ProductDetailsEditor } from './product-details-editor';
 import { VisitorDashboard, trackActivity, trackPurchase } from './visitor-activity';
 import { PaymentSetup } from './payment-setup';
 import { checkoutAttempt } from '@/lib/checkout-attempt';
+import { prepareImage, uploadResponse } from '@/lib/prepare-image';
+import { StoreImage } from './store-image';
 import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
 import { CustomShirtBanner, CustomShirtStudio, CustomShirtAdmin, CustomItemDetails, CustomArtworkLinks } from './custom-shirt-studio';
 import { PremiumFooter } from './premium-footer';
@@ -146,10 +148,10 @@ export default function StorefrontApp({
   initialHomeCollectionCards?: HomeCollectionCard[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]),
-    [catalog, setCatalog] = useState<Product[]>(initialCatalog?.length ? initialCatalog : seededProducts),
+    [catalog, setCatalog] = useState<Product[]>(initialCatalog ?? []),
     [storeSettings, setStoreSettings] = useState<StoreSettings>(initialSettings || defaultStoreSettings),
     [homeSections, setHomeSections] = useState<ContentSection[]>(initialSections || []),
-    [homeCollectionCards, setHomeCollectionCards] = useState<HomeCollectionCard[]>(initialHomeCollectionCards ?? defaultHomeCollectionCards),
+    [homeCollectionCards, setHomeCollectionCards] = useState<HomeCollectionCard[]>(initialHomeCollectionCards ?? []),
     [ready, setReady] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
@@ -181,7 +183,8 @@ export default function StorefrontApp({
       return updated;
     });
   };
-  const [collectionsList, setCollectionsList] = useState<Category[]>(initialCollections?.length ? initialCollections : categories);
+  const [collectionsList, setCollectionsList] = useState<Category[]>(initialCollections ?? []);
+  const [storeConfigReady, setStoreConfigReady] = useState(Boolean(initialSettings));
 
   const countdown = useCountdown();
   const [designsLoading, setDesignsLoading] = useState(false);
@@ -200,25 +203,54 @@ export default function StorefrontApp({
       }
     } catch {}
     setReady(true);
-    if (!initialCatalog?.length) {
-      fetch('/api/products')
+    if (!initialCatalog) {
+      fetch('/api/products', { cache: 'no-store' })
         .then((response) => (response.ok ? response.json() : Promise.reject()))
         .then((value: Product[]) => setCatalog(current => [...value, ...current.filter(p => p.slug.startsWith('custom-'))]))
         .catch(() => setToast('Live catalog is temporarily unavailable.'));
     }
-    fetch('/api/store-config')
+    fetch('/api/store-config', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((value: { settings: StoreSettings; sections: ContentSection[]; collections: Category[]; homeCollectionCards: HomeCollectionCard[] }) => {
         setStoreSettings(value.settings);
         setHomeSections(value.sections);
-        if (value.collections?.length) setCollectionsList(value.collections);
+        if (Array.isArray(value.collections)) setCollectionsList(value.collections);
         if (Array.isArray(value.homeCollectionCards)) setHomeCollectionCards(value.homeCollectionCards);
       })
-      .catch(() => setToast('Store settings are temporarily unavailable.'));
+      .catch(() => setToast('Store settings are temporarily unavailable.'))
+      .finally(() => setStoreConfigReady(true));
   }, []);
   useEffect(() => {
-    if (ready) localStorage.setItem('zyra-cart', JSON.stringify(cart));
+    if (ready) { try { localStorage.setItem('zyra-cart', JSON.stringify(cart)); } catch {} }
   }, [cart, ready]);
+  useEffect(() => {
+    if (path.startsWith('/admin')) return;
+    let pending = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (pending || document.visibilityState !== 'visible') return;
+      pending = true;
+      try {
+        const [productsResponse, configResponse] = await Promise.all([
+          fetch('/api/products', { cache: 'no-store', signal: controller.signal }),
+          fetch('/api/store-config', { cache: 'no-store', signal: controller.signal }),
+        ]);
+        if (productsResponse.ok) {
+          const products: Product[] = await productsResponse.json();
+          setCatalog(current => [...products, ...current.filter(p => p.slug.startsWith('custom-'))]);
+        }
+        if (configResponse.ok) {
+          const config = await configResponse.json();
+          setStoreSettings(config.settings); setHomeSections(config.sections);
+          setCollectionsList(config.collections); setHomeCollectionCards(config.homeCollectionCards);
+        }
+      } catch {} finally { pending = false; }
+    };
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+    return () => { controller.abort(); clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('pageshow', refresh); };
+  }, [path]);
   useEffect(() => {
     const id = setInterval(
       () => setNotice((n) => (n + 1) % announcements.length),
@@ -307,7 +339,7 @@ export default function StorefrontApp({
           />
         </>
       )}
-      {path === '/' ? (
+      {path === '/' ? storeConfigReady ? (
         <Home
           catalog={catalog.filter(p=>!p.slug.startsWith('custom-'))}
           sections={homeSections}
@@ -318,6 +350,8 @@ export default function StorefrontApp({
           collections={collectionsList}
           homeCollectionCards={homeCollectionCards}
         />
+      ) : (
+        <main className="home-page home-loading" aria-busy="true"><p>Loading ZYRA…</p></main>
       ) : path === '/customise-your-shirt' ? (
         <CustomShirtStudio onAdd={(product, size, colour) => {
           const next = [...cart, { slug: product.slug, size, color: colour, qty: 1 }];
@@ -338,7 +372,7 @@ export default function StorefrontApp({
           subtotal={subtotal}
           catalog={catalog}
           settings={storeSettings}
-          onComplete={() => setCart([])}
+          onComplete={() => { try { localStorage.removeItem('zyra-cart'); } catch {} setCart([]); }}
         />
       ) : path.startsWith('/order-confirmation/') ? (
         <ConfirmationView token={path.split('/')[2]} settings={storeSettings} catalog={catalog} />
@@ -692,7 +726,7 @@ function ProductCard({ product }: { product: Product }) {
             {gallery.map((src, index) => (
               <a href={`/products/${product.slug}`} key={src} tabIndex={index === activeImage ? 0 : -1}
                 aria-label={`View ${product.name}, photo ${index + 1} of ${gallery.length}`}>
-                <img src={src} alt={`${product.name} — view ${index + 1}`} loading="lazy" decoding="async" />
+                <StoreImage src={src} alt={`${product.name} — view ${index + 1}`} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" loading="lazy" />
               </a>
             ))}
           </div>
@@ -1646,16 +1680,12 @@ function Home({
   homeCollectionCards?: HomeCollectionCard[];
 }) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
-  const media = (url: string) => {
-    const marker = '/storage/v1/object/public/product-images/';
-    const at = url.indexOf(marker);
-    return at < 0 ? url : `/api/store-media?path=${encodeURIComponent(url.slice(at + marker.length))}`;
-  };
+  const media = (url: string) => url;
   return (
     <main className="home-page">
       {enabled('campaign-hero') && (
       <section className="hero">
-        <img
+        <StoreImage width={1600} height={1000} sizes="100vw" loading="eager" fetchPriority="high"
           src={media(settings.heroImage || defaultStoreSettings.heroImage)}
           alt="ZYRA campaign banner"
           onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = defaultStoreSettings.heroImage; }}
@@ -3431,6 +3461,8 @@ function ProductEditor({
       const compareRupees = Number(data.get('compareAt'));
       const body = {
         originalSlug: product?.slug,
+        updatedAt: product?.updatedAt,
+        active: product?.active !== false,
         name: String(data.get('name') || '').trim(),
         slug: String(data.get('slug') || '').trim().toLowerCase(),
         category: String(data.get('category') || ''),
@@ -3525,11 +3557,10 @@ function ImageUploader({
             onError('');
             try {
               const form = new FormData();
-              form.append('file', file);
+              form.append('file', await prepareImage(file));
               form.append('scope', scope);
               const response = await fetch('/api/admin/uploads', { method: 'POST', body: form });
-              const result = await response.json();
-              if (!response.ok) throw new Error(result.error || 'Image could not be uploaded.');
+              const result = await uploadResponse(response);
               onChange(result.url);
             } catch (uploadError) {
               onError(uploadError instanceof Error ? uploadError.message : 'Image could not be uploaded.');
@@ -3540,7 +3571,7 @@ function ImageUploader({
           }}
         />
       </label>
-      <small>JPG, PNG, WebP or AVIF · maximum 4 MB</small>
+      <small>JPG, PNG, WebP or AVIF · automatically optimised · up to 25 MB</small>
     </div>
   );
 }

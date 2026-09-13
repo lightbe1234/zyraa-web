@@ -2,8 +2,8 @@ import StorefrontApp from '../storefront-app';
 import { notFound } from 'next/navigation';
 import { readSeoCatalog } from '@/lib/seo-catalog';
 import { absoluteUrl, breadcrumbs, collectionDescription, collectionTitle, helpSeo, pageMetadata, productMetadata, productSchema, serializeSchema } from '@/lib/seo';
-import { categories, products as seededProducts, type Category } from '@/lib/catalog';
-import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-collection-cards';
+import { products as seededProducts, type Category } from '@/lib/catalog';
+import type { HomeCollectionCard } from '@/lib/home-collection-cards';
 import { getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
 
 export const dynamic = 'force-dynamic';
@@ -48,22 +48,19 @@ export default async function CatchAll({
   const publicHelp = route[0] === 'pages' && route.length === 2 && helpSeo[route[1]];
   const utility = ['cart', 'checkout', 'search', 'track-order', 'account', 'customise-your-shirt'].includes(route[0]) && route.length === 1 || route[0] === 'admin' || route[0] === 'order-confirmation';
   if (!product && !publicHelp && !utility && !(route[0] === 'collections' && (route.length === 1 || route.length === 2 && (collection || specialCollection)))) notFound();
-  let initialCatalog = seededProducts;
+  let initialCatalog: typeof seededProducts | undefined;
   let initialSettings: StoreSettings | undefined;
   let initialSections: ContentSection[] = [];
-  let initialCollections: Category[] = categories;
-  let initialHomeCollectionCards: HomeCollectionCard[] = defaultHomeCollectionCards;
-  try {
-    [initialSettings, initialSections, initialHomeCollectionCards] = await Promise.all([
-      getStoreSettings(),
-      getContentSections(),
-      getHomeCollectionCards(),
-    ]);
-  } catch {
-    // Keep the storefront available when the database is temporarily unreachable.
+  let initialCollections: Category[] = [];
+  let initialHomeCollectionCards: HomeCollectionCard[] = [];
+  const configResults = await Promise.allSettled([getStoreSettings(), getContentSections(), getHomeCollectionCards()]);
+  if (configResults[0].status === 'fulfilled') initialSettings = configResults[0].value;
+  if (configResults[1].status === 'fulfilled') initialSections = configResults[1].value;
+  if (configResults[2].status === 'fulfilled') initialHomeCollectionCards = configResults[2].value;
+  if (seoData.available) {
+    initialCatalog = seoData.catalog;
+    initialCollections = seoData.collections;
   }
-  initialCatalog = seoData.catalog;
-  initialCollections = seoData.collections;
   const schema: unknown[] = [];
   if (product && seoData.available) schema.push(productSchema(product), breadcrumbs([['Home', '/'], ['Collections', '/collections'], [product.name, path]]));
   if (route[0] === 'collections' && seoData.available) {

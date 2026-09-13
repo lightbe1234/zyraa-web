@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { emptyProductDetails, type ProductDetails } from '@/lib/product-experience-types';
 
-/** Supplemental details save separately so a local preview cannot alter the live catalog. */
+/** Supplemental product content is saved durably in the shared database. */
 export function ProductDetailsEditor({ slug, sizes }: { slug: string; sizes: string[] }) {
   const [details, setDetails] = useState<ProductDetails>(emptyProductDetails);
   const [status, setStatus] = useState('');
@@ -17,8 +17,8 @@ export function ProductDetailsEditor({ slug, sizes }: { slug: string; sizes: str
     return () => controller.abort();
   }, [slug]);
   if (!available) return null;
-  return <details className="admin-product-details"><summary>Product page content & size guide · local preview</summary>
-    <p>Add confirmed details only. These fields save locally using the separate button below; your live product is unchanged.</p>
+  return <details className="admin-product-details"><summary>Product page content & size guide</summary>
+    <p>Add confirmed details and measurements. Use Save page details below to publish these fields.</p>
     <div className="form-grid">
       {(['summary', 'material', 'fit', 'care', 'sizeNote'] as const).map((key) => <label key={key} className="wide">
         {{ summary: 'Short summary (240 characters)', material: 'Confirmed material / fabric', fit: 'Fit description', care: 'Care instructions', sizeNote: 'Size / model fit note' }[key]}
@@ -39,10 +39,10 @@ export function ProductDetailsEditor({ slug, sizes }: { slug: string; sizes: str
         const response = await fetch(`/api/product-experience/${slug}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Details could not be saved.');
-        setStatus('Local product page details saved. Refresh the product page to see them.');
+        setStatus('Product page details saved.');
       } catch (error) { setStatus(error instanceof Error ? error.message : 'Please try again.'); }
       finally { setBusy(false); }
-    }}>{busy ? 'Saving details…' : 'Save local page details'}</button>
+    }}>{busy ? 'Saving details…' : 'Save page details'}</button>
     {status && <p role="status">{status}</p>}
   </details>;
 }
