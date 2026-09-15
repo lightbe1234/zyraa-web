@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { money, type Product } from '@/lib/catalog';
 import { prepareImage, uploadResponse } from '@/lib/prepare-image';
+import { defaultHomeContent, type HomeContent } from '@/lib/home-content';
 import {
   customQuote,
   customSizes,
@@ -22,7 +23,7 @@ import {
   type CustomOption,
 } from '@/lib/custom-shirts';
 
-export function CustomShirtBanner() {
+export function CustomShirtBanner({ content = defaultHomeContent }: { content?: HomeContent }) {
   const [image, setImage] = useState('');
   useEffect(() => {
     fetch('/api/custom-shirts')
@@ -34,7 +35,7 @@ export function CustomShirtBanner() {
       .catch(() => {});
   }, []);
   return (
-    <a className="zs-banner" href="/customise-your-shirt">
+    <a className="zs-banner" href={content.customLink}>
       {image && (
         <img
           src={image}
@@ -44,24 +45,22 @@ export function CustomShirtBanner() {
         />
       )}
       <div className="zs-banner-copy">
-        <span>ZYRA / CUSTOM SHIRTS</span>
+        <span>{content.customEyebrow}</span>
         <h2>
-          Your design.
-          <br />
-          Your shirt.
+          {content.customTitle.split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}{index < content.customTitle.split('\n').length - 1 && <br />}</span>)}
         </h2>
-        <p>Choose a shirt. Upload the print you want.</p>
+        <p>{content.customCopy}</p>
         <span className="zs-banner-link">
-          Create my shirt <ArrowUpRight size={22} aria-hidden="true" />
+          {content.customCta} <ArrowUpRight size={22} aria-hidden="true" />
         </span>
         <div className="zs-banner-steps" aria-hidden="true">
-          <span>01 / Choose</span>
-          <span>02 / Upload</span>
-          <span>03 / Order</span>
+          <span>{content.customStepOne}</span>
+          <span>{content.customStepTwo}</span>
+          <span>{content.customStepThree}</span>
         </div>
       </div>
       <span className="zs-banner-corner" aria-hidden="true">
-        YOUR IDEA. OUR CANVAS.
+        {content.customCorner}
       </span>
     </a>
   );

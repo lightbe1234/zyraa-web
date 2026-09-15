@@ -51,6 +51,7 @@ import { defaultHomeCollectionCards, type HomeCollectionCard } from '@/lib/home-
 import { CustomShirtBanner, CustomShirtStudio, CustomShirtAdmin, CustomItemDetails, CustomArtworkLinks } from './custom-shirt-studio';
 import { PremiumFooter } from './premium-footer';
 import type { CustomDetails } from '@/lib/custom-shirts';
+import { defaultHomeContent, homeContentFields, normalizeHomeContent, type HomeContent } from '@/lib/home-content';
 
 type CartItem = { slug: string; size: string; color: string; qty: number };
 type Order = {
@@ -83,6 +84,7 @@ type StoreSettings = {
   heroHeading: string;
   heroCtaLabel: string;
   heroCtaHref: string;
+  homeContent: HomeContent;
 };
 type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
 const defaultStoreSettings: StoreSettings = {
@@ -101,13 +103,8 @@ const defaultStoreSettings: StoreSettings = {
   heroHeading: 'BREAK\nTHE\nPATTERN',
   heroCtaLabel: 'Shop the drop',
   heroCtaHref: '/collections/after-hours',
+  homeContent: defaultHomeContent,
 };
-const announcements = [
-  'Free shipping across Pakistan over Rs. 4,999',
-  '7-day size exchange on unworn pieces',
-  'Cash on delivery available nationwide',
-];
-
 function useCountdown() {
   const [left, setLeft] = useState('');
   useEffect(() => {
@@ -187,6 +184,9 @@ export default function StorefrontApp({
   const [storeConfigReady, setStoreConfigReady] = useState(Boolean(initialSettings));
 
   const countdown = useCountdown();
+  const homeCopy = normalizeHomeContent(storeSettings.homeContent);
+  const pageCopy = path === '/' ? homeCopy : defaultHomeContent;
+  const announcements = [pageCopy.announcementOne, pageCopy.announcementTwo, pageCopy.announcementThree];
   const [designsLoading, setDesignsLoading] = useState(false);
   useEffect(() => {
     try {
@@ -312,7 +312,7 @@ export default function StorefrontApp({
         <>
           {countdown && (
             <div className="promo">
-              <span>TREND-LED STYLE. QUALITY FABRICS.</span>
+              <span>{path === '/' ? homeCopy.promoText : defaultHomeContent.promoText}</span>
               <span aria-live="off">ENDS IN {countdown}</span>
             </div>
           )}
@@ -336,6 +336,7 @@ export default function StorefrontApp({
             onMenu={() => setMenuOpen(true)}
             onSearch={() => setSearchOpen(true)}
             onCart={() => setCartOpen(true)}
+            content={path === '/' ? homeCopy : undefined}
           />
         </>
       )}
@@ -397,7 +398,7 @@ export default function StorefrontApp({
       ) : (
         <InfoPage path={path} settings={storeSettings} />
       )}
-      {storefront && <PremiumFooter settings={storeSettings} collections={collectionsList} />}
+      {storefront && <PremiumFooter settings={storeSettings} collections={collectionsList} content={path === '/' ? homeCopy : undefined} />}
       <Drawer open={menuOpen} close={() => setMenuOpen(false)} collections={collectionsList} />
       <SearchPanel open={searchOpen} close={() => setSearchOpen(false)} catalog={catalog} />
       <CartPanel
@@ -422,22 +423,24 @@ function Header({
   onMenu,
   onSearch,
   onCart,
+  content = defaultHomeContent,
 }: {
   count: number;
   onMenu: () => void;
   onSearch: () => void;
   onCart: () => void;
+  content?: HomeContent;
 }) {
   return (
     <header className="site-header">
       <div className="header-leading">
         <button className="header-menu-button" aria-label="Open menu" onClick={onMenu}>
           <Menu />
-          <span>Menu</span>
+          <span>{content.headerMenu}</span>
         </button>
         <nav className="header-primary-nav" aria-label="Primary navigation">
-          <a href="/collections">Shop</a>
-          <a href="/collections/new-arrivals">New arrivals</a>
+          <a href="/collections">{content.headerShop}</a>
+          <a href="/collections/new-arrivals">{content.headerNewArrivals}</a>
         </nav>
       </div>
       <a className="wordmark" href="/">
@@ -446,7 +449,7 @@ function Header({
       <nav className="header-actions" aria-label="Utility">
         <button className="header-tool" aria-label="Search" onClick={onSearch}>
           <Search />
-          <span>Search</span>
+          <span>{content.headerSearch}</span>
         </button>
         <a
           className="header-tool hide-mobile"
@@ -454,7 +457,7 @@ function Header({
           aria-label="Account"
         >
           <CircleUserRound />
-          <span>Account</span>
+          <span>{content.headerAccount}</span>
         </a>
         <button
           className="header-tool cart-link"
@@ -462,7 +465,7 @@ function Header({
           onClick={onCart}
         >
           <ShoppingBag />
-          <span className="header-tool-label">Bag</span>
+          <span className="header-tool-label">{content.headerBag}</span>
           <span className="cart-count" aria-hidden="true">{count}</span>
         </button>
       </nav>
@@ -788,11 +791,15 @@ function Rail({
   label,
   list,
   description,
+  href = '/collections',
+  cta = 'View all',
 }: {
   title: string;
   label: string;
   list: Product[];
   description?: string;
+  href?: string;
+  cta?: string;
 }) {
   if (!list.length) return null;
   return (
@@ -810,8 +817,8 @@ function Rail({
         ))}
       </div>
       <div className="section-view-all">
-        <a className="outline-button" href="/collections">
-          View all <ArrowRight aria-hidden="true" />
+        <a className="outline-button" href={href}>
+          {cta} <ArrowRight aria-hidden="true" />
         </a>
       </div>
     </section>
@@ -824,12 +831,14 @@ function CommunityReviews({
   onDeleteReview,
   isAdmin = false,
   catalog = [],
+  content = defaultHomeContent,
 }: {
   reviews: Review[];
   onAddReview: (review: Review) => void;
   onDeleteReview: (id: string) => void;
   isAdmin?: boolean;
   catalog?: Product[];
+  content?: HomeContent;
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [helpfulVotes, setHelpfulVotes] = useState<Record<string, number>>({});
@@ -966,7 +975,7 @@ function CommunityReviews({
             fontWeight: 600,
           }}
         >
-          <span>The ZYRA community</span>
+          <span>{content.reviewsEyebrow}</span>
           <span
             className="index-pill"
             style={{
@@ -977,7 +986,7 @@ function CommunityReviews({
               fontWeight: 500,
             }}
           >
-            Style & fit
+            {content.reviewsTag}
           </span>
         </div>
         <div
@@ -1001,11 +1010,7 @@ function CommunityReviews({
               margin: 0,
             }}
           >
-            How you
-            <br />
-            <span className="highlight-sub" style={{ color: '#8C8980', fontWeight: 500 }}>
-              wear ZYRA.
-            </span>
+            {content.reviewsTitle.split('\n').map((line, index) => index ? <span key={`${line}-${index}`} className="highlight-sub" style={{ color: '#8C8980', fontWeight: 500 }}><br />{line}</span> : line)}
           </h2>
           {isAdmin && (
             <button
@@ -1081,7 +1086,7 @@ function CommunityReviews({
                 boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
               }}
             />
-            <span>Fit notes & reviews</span>
+            <span>{content.reviewsBadge}</span>
           </div>
         </div>
       </header>
@@ -1377,7 +1382,7 @@ function CommunityReviews({
             cursor: 'pointer',
           }}
         >
-          Share your experience
+          {content.reviewsCta}
         </button>
 
         {filteredReviews.length > 3 && (
@@ -1699,6 +1704,13 @@ function Home({
 }) {
   const enabled = (key: string) => !sections.length || sections.some((section) => section.key === key && section.enabled);
   const media = (url: string) => url;
+  const content = normalizeHomeContent(settings.homeContent);
+  const productsFor = (slug: string, fallback: Product[]) => {
+    if (!slug || slug === 'all') return catalog;
+    const collection = collections.find((item) => item.slug === slug);
+    return collection ? catalog.filter((product) => product.collection === collection.name || product.category === collection.name) : fallback;
+  };
+  const collectionHref = (slug: string) => slug && slug !== 'all' ? `/collections/${slug}` : '/collections';
   return (
     <main className="home-page">
       {enabled('campaign-hero') && (
@@ -1710,42 +1722,44 @@ function Home({
         />
         <div className="hero-shade" />
         <div className="hero-copy">
-          <p>ZYRA · Everyday & streetwear</p>
+          <p>{settings.heroEyebrow || defaultStoreSettings.heroEyebrow}</p>
           <h1>{(settings.heroHeading || defaultStoreSettings.heroHeading).split('\n').map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</h1>
           <a className="light-button" href={settings.heroCtaHref || defaultStoreSettings.heroCtaHref}>
             {settings.heroCtaLabel || defaultStoreSettings.heroCtaLabel} <ArrowUpRight aria-hidden="true" />
           </a>
         </div>
-        <p className="hero-caption">Graphic tees. Everyday essentials.</p>
+        <p className="hero-caption">{content.heroCaption}</p>
       </section>
       )}
       <div className="shopping-assurances" aria-label="Shopping at ZYRA">
-        <div><i className="assurance-icon"><CreditCard aria-hidden="true" /></i><span><strong>Cash on delivery</strong><small>Pay when it arrives</small></span></div>
-        <div><i className="assurance-icon"><PackageOpen aria-hidden="true" /></i><span><strong>Allowed to open</strong><small>Check your parcel</small></span></div>
-        <a href="/track-order"><i className="assurance-icon"><PackageCheck aria-hidden="true" /></i><span><strong>Track your order</strong><small>Check order status <ChevronRight aria-hidden="true" /></small></span></a>
+        <div><i className="assurance-icon"><CreditCard aria-hidden="true" /></i><span><strong>{content.assuranceOneTitle}</strong><small>{content.assuranceOneCopy}</small></span></div>
+        <div><i className="assurance-icon"><PackageOpen aria-hidden="true" /></i><span><strong>{content.assuranceTwoTitle}</strong><small>{content.assuranceTwoCopy}</small></span></div>
+        <a href={content.assuranceThreeLink}><i className="assurance-icon"><PackageCheck aria-hidden="true" /></i><span><strong>{content.assuranceThreeTitle}</strong><small>{content.assuranceThreeCopy} <ChevronRight aria-hidden="true" /></small></span></a>
       </div>
-      {enabled('best-sellers') && <Rail title="Find your fit" label="Shop ZYRA" description="Tees, shirts and trousers. Pick your favourites." list={catalog} />}
+      {enabled('best-sellers') && <Rail title={content.railOneTitle} label={content.railOneLabel} description={content.railOneCopy} list={productsFor(content.railOneCollection, catalog)} href={collectionHref(content.railOneCollection)} cta={content.railOneCta} />}
       {enabled('brand-manifesto') && (
       <section id="our-story" className="manifesto section-shell">
         <div className="manifesto-minimal">
           <div>
-            <p className="eyebrow">ZYRA / EST. 2023</p>
-            <h2>All the trends.<br />One destination.</h2>
-            <p className="manifesto-copy">From graphic tees to everyday essentials, all in one place.</p>
+            <p className="eyebrow">{content.storyEyebrow}</p>
+            <h2>{content.storyTitle.split('\n').map((line, index, lines) => <span key={`${line}-${index}`}>{line}{index < lines.length - 1 && <br />}</span>)}</h2>
+            <p className="manifesto-copy">{content.storyCopy}</p>
         </div>
         <div className="manifesto-minimal-badges" aria-label="Store assurances">
-          <span><i className="manifesto-icon-wrap"><CheckCircle2 aria-hidden="true" /></i> Quality fabrics</span>
-          <span><i className="manifesto-icon-wrap"><PackageCheck /></i> 7-day exchange</span>
+          <span><i className="manifesto-icon-wrap"><CheckCircle2 aria-hidden="true" /></i> {content.storyBadgeOne}</span>
+          <span><i className="manifesto-icon-wrap"><PackageCheck /></i> {content.storyBadgeTwo}</span>
         </div>
       </div>
       </section>
       )}
       {enabled('core-forms') && (
       <Rail
-        title="Keep it casual"
-        label="Graphics & everyday wear"
-        description="Graphic or plain. Find your kind of tee."
-        list={catalog.filter((p) => /\btees?\b|t-shirts?/i.test(`${p.category} ${p.name}`))}
+        title={content.railTwoTitle}
+        label={content.railTwoLabel}
+        description={content.railTwoCopy}
+        list={productsFor(content.railTwoCollection, catalog.filter((p) => /\btees?\b|t-shirts?/i.test(`${p.category} ${p.name}`)))}
+        href={collectionHref(content.railTwoCollection)}
+        cta={content.railTwoCta}
       />
       )}
       <section className="editorial-grid">
@@ -1758,27 +1772,29 @@ function Home({
               <div>
                 <p className="eyebrow">{card.eyebrow}</p>
                 <h2>{card.title}</h2>
-                <span>Explore collection ↗</span>
+                <span>{content.editorialCta}</span>
               </div>
             </a>
           ))}
       </section>
       <Rail
-        title="Complete your look"
-        label="Bottoms"
-        description="Trousers to pair with your tees and shirts."
-        list={catalog.filter(
+        title={content.railThreeTitle}
+        label={content.railThreeLabel}
+        description={content.railThreeCopy}
+        list={productsFor(content.railThreeCollection, catalog.filter(
           (p) => /\bbottoms?\b|trousers?|pants?|joggers?|jeans|shorts|cargos?/i.test(`${p.category} ${p.name}`),
-        )}
+        ))}
+        href={collectionHref(content.railThreeCollection)}
+        cta={content.railThreeCta}
       />
-      <CustomShirtBanner />
+      <CustomShirtBanner content={content} />
       {enabled('collection-grid') && <section className="section-shell collection-discovery" id="collections">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Shop by collection</p>
-            <h2>The ZYRA collections</h2>
+            <p className="eyebrow">{content.collectionEyebrow}</p>
+            <h2>{content.collectionTitle}</h2>
           </div>
-          <p className="collection-intro">From graphic tees to trousers and layers. Find what you’re looking for, all in one place.</p>
+          <p className="collection-intro">{content.collectionCopy}</p>
         </div>
         <div className="collection-grid">
           {collections.map((c) => (
@@ -1788,7 +1804,7 @@ function Home({
                 <div className="collection-caption">
                   <div>
                     <h3>{c.name}</h3>
-                    <span className="collection-card-kicker">Shop collection →</span>
+                    <span className="collection-card-kicker">{content.collectionCta}</span>
                   </div>
                 </div>
               </div>
@@ -1803,13 +1819,14 @@ function Home({
           onDeleteReview={onDeleteReview}
           isAdmin={isAdmin}
           catalog={catalog}
+          content={content}
         />
       )}
       <section className="trust-section" aria-label="Brand guarantees and trust signals">
         <header className="trust-heading">
-          <p className="eyebrow">Here to help</p>
-          <h2>Before you order</h2>
-          <span className="trust-live">A few useful details.</span>
+          <p className="eyebrow">{content.trustEyebrow}</p>
+          <h2>{content.trustTitle}</h2>
+          <span className="trust-live">{content.trustCopy}</span>
         </header>
         <div className="trust-strip">
         <div className="trust-card">
@@ -1818,11 +1835,11 @@ function Home({
               <Shirt className="trust-icon" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="trust-title">Choosing a size?</h3>
-              <p className="trust-desc">Check the size guide on the product page.</p>
+              <h3 className="trust-title">{content.trustOneTitle}</h3>
+              <p className="trust-desc">{content.trustOneCopy}</p>
             </div>
           </div>
-          <span className="trust-pill trust-pill-ssl">Fabric first</span>
+          <span className="trust-pill trust-pill-ssl">{content.trustOneTag}</span>
         </div>
 
         <div className="trust-card">
@@ -1831,11 +1848,11 @@ function Home({
               <Truck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Delivery questions?</h3>
-              <p className="trust-desc"><a href="/pages/shipping">Read delivery information →</a></p>
+              <h3 className="trust-title">{content.trustTwoTitle}</h3>
+              <p className="trust-desc"><a href={content.trustTwoLink}>{content.trustTwoCopy}</a></p>
             </div>
           </div>
-          <span className="trust-pill">Order updates</span>
+          <span className="trust-pill">{content.trustTwoTag}</span>
         </div>
 
         <div className="trust-card">
@@ -1844,11 +1861,11 @@ function Home({
               <CreditCard className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Need a hand?</h3>
-              <p className="trust-desc"><a href={settings.whatsappUrl || 'https://wa.me/966595943013'}>Chat with us on WhatsApp →</a></p>
+              <h3 className="trust-title">{content.trustThreeTitle}</h3>
+              <p className="trust-desc"><a href={settings.whatsappUrl || 'https://wa.me/966595943013'}>{content.trustThreeCopy}</a></p>
             </div>
           </div>
-          <span className="trust-pill trust-pill-black">Your choice</span>
+          <span className="trust-pill trust-pill-black">{content.trustThreeTag}</span>
         </div>
 
         <div className="trust-card">
@@ -1857,11 +1874,11 @@ function Home({
               <PackageCheck className="trust-icon" />
             </div>
             <div>
-              <h3 className="trust-title">Exchanging an item?</h3>
-              <p className="trust-desc"><a href="/pages/returns">Check exchange eligibility →</a></p>
+              <h3 className="trust-title">{content.trustFourTitle}</h3>
+              <p className="trust-desc"><a href={content.trustFourLink}>{content.trustFourCopy}</a></p>
             </div>
           </div>
-          <span className="trust-pill">See exchange policy</span>
+          <span className="trust-pill">{content.trustFourTag}</span>
         </div>
         </div>
       </section>
@@ -3092,6 +3109,13 @@ function AdminView({
             }}
           >
             <h2>Homepage content</h2>
+            <p>Edit only the content shown on the homepage. Store operations and other pages are not changed here.</p>
+            <HomeCollectionCardsEditor
+              cards={homeCollectionCards}
+              collections={collections}
+              onSaved={(nextCards, message) => { onHomeCollectionCardsChange(nextCards); setSaved(message); }}
+              onError={setAdminError}
+            />
             <div className="admin-banner-editor">
               <div className="admin-section-head">
                 <div>
@@ -3125,6 +3149,31 @@ function AdminView({
                   <input value={settings.heroCtaHref} onChange={(event) => setSettings({ ...settings, heroCtaHref: event.target.value })} />
                 </label>
               </div>
+            </div>
+            <div className="admin-home-copy-editor">
+              {[...new Set(homeContentFields.map((item) => item.group))].map((group, groupIndex) => (
+                <details key={group} open={groupIndex === 0}>
+                  <summary><span>{group}</span><small>{homeContentFields.filter((item) => item.group === group).length} fields</small></summary>
+                  <div className="admin-home-copy-fields">
+                    {homeContentFields.filter((item) => item.group === group).map((item) => (
+                      <label key={item.key}>
+                        {item.label}
+                        {item.kind === 'textarea' ? (
+                          <textarea rows={3} maxLength={500} value={settings.homeContent[item.key]} onChange={(event) => setSettings({ ...settings, homeContent: { ...settings.homeContent, [item.key]: event.target.value } })} />
+                        ) : item.kind === 'collection' ? (
+                          <select value={settings.homeContent[item.key]} onChange={(event) => setSettings({ ...settings, homeContent: { ...settings.homeContent, [item.key]: event.target.value } })}>
+                            <option value="all">All products / Shop all</option>
+                            {collections.map((collection) => <option value={collection.slug} key={collection.slug}>{collection.name}</option>)}
+                          </select>
+                        ) : (
+                          <input maxLength={500} value={settings.homeContent[item.key]} onChange={(event) => setSettings({ ...settings, homeContent: { ...settings.homeContent, [item.key]: event.target.value } })} />
+                        )}
+                        {item.kind === 'textarea' && <small>New lines are preserved in headings.</small>}
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              ))}
             </div>
             {sections.map((section, i) => (
               <label className="toggle-row" key={section.key}>
@@ -3284,7 +3333,7 @@ function HomeCollectionCardsEditor({
       </div>
       <div className="admin-home-card-list">
         {[...drafts].sort((left, right) => left.sortOrder - right.sortOrder).map((card) => (
-          <form className="admin-home-card" key={card.key} onSubmit={(event) => { event.preventDefault(); void save(card); }}>
+          <div className="admin-home-card" key={card.key}>
             <div className="admin-home-card-preview">
               <img src={card.image} alt="" />
               <span><small>{card.eyebrow}</small><b>{card.title}</b></span>
@@ -3316,10 +3365,10 @@ function HomeCollectionCardsEditor({
               onError={onError}
               scope="collection"
             />
-            <button className="dark-button" disabled={savingKey === card.key}>
+            <button type="button" className="dark-button" disabled={savingKey === card.key} onClick={() => void save(card)}>
               {savingKey === card.key ? 'Saving…' : 'Save homepage card'}
             </button>
-          </form>
+          </div>
         ))}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { Category, Product } from './catalog';
 import type { HomeCollectionCard } from './home-collection-cards';
+import { normalizeHomeContent, type HomeContent } from './home-content';
 import { getSupabaseAdmin } from './supabase-server';
 import { isMissingDatabaseObject } from './supabase-errors';
 import { signedDetails } from './custom-shirts-server';
@@ -36,6 +37,7 @@ export type StoreSettings = {
   heroHeading: string;
   heroCtaLabel: string;
   heroCtaHref: string;
+  homeContent: HomeContent;
 };
 
 export type ContentSection = { key: string; label: string; sortOrder: number; enabled: boolean };
@@ -224,6 +226,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     heroHeading: data.hero_heading || 'BREAK\nTHE\nPATTERN',
     heroCtaLabel: data.hero_cta_label || 'Shop the drop',
     heroCtaHref: data.hero_cta_href || '/collections/after-hours',
+    homeContent: normalizeHomeContent(data.home_content),
   };
 }
 
