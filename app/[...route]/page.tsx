@@ -4,7 +4,8 @@ import { readSeoCatalog } from '@/lib/seo-catalog';
 import { absoluteUrl, breadcrumbs, collectionDescription, collectionTitle, helpSeo, pageMetadata, productMetadata, productSchema, serializeSchema } from '@/lib/seo';
 import { products as seededProducts, type Category } from '@/lib/catalog';
 import type { HomeCollectionCard } from '@/lib/home-collection-cards';
-import { getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
+import type { Review } from '@/lib/reviews';
+import { getCommunityReviews, getContentSections, getHomeCollectionCards, getStoreSettings, type ContentSection, type StoreSettings } from '@/lib/supabase-store';
 
 export const dynamic = 'force-dynamic';
 const specialCollections: Record<string, string> = {
@@ -53,10 +54,12 @@ export default async function CatchAll({
   let initialSections: ContentSection[] = [];
   let initialCollections: Category[] = [];
   let initialHomeCollectionCards: HomeCollectionCard[] = [];
-  const configResults = await Promise.allSettled([getStoreSettings(), getContentSections(), getHomeCollectionCards()]);
+  let initialReviews: Review[] = [];
+  const configResults = await Promise.allSettled([getStoreSettings(), getContentSections(), getHomeCollectionCards(), getCommunityReviews()]);
   if (configResults[0].status === 'fulfilled') initialSettings = configResults[0].value;
   if (configResults[1].status === 'fulfilled') initialSections = configResults[1].value;
   if (configResults[2].status === 'fulfilled') initialHomeCollectionCards = configResults[2].value;
+  if (configResults[3].status === 'fulfilled') initialReviews = configResults[3].value;
   if (seoData.available) {
     initialCatalog = seoData.catalog;
     initialCollections = seoData.collections;
@@ -81,5 +84,5 @@ export default async function CatchAll({
     });
   }
   if (publicHelp) schema.push(breadcrumbs([['Home', '/'], [publicHelp[0], path]]));
-  return <><StorefrontApp path={path} initialCatalog={initialCatalog} initialSettings={initialSettings} initialSections={initialSections} initialCollections={initialCollections} initialHomeCollectionCards={initialHomeCollectionCards} />{schema.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeSchema(schema) }} />}</>;
+  return <><StorefrontApp path={path} initialCatalog={initialCatalog} initialSettings={initialSettings} initialSections={initialSections} initialCollections={initialCollections} initialHomeCollectionCards={initialHomeCollectionCards} initialReviews={initialReviews} />{schema.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeSchema(schema) }} />}</>;
 }

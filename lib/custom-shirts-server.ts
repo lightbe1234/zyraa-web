@@ -31,7 +31,7 @@ export async function designProducts(slugs: string[]): Promise<Product[]> {
   return Promise.all((data || []).map(async row => {
     const p = row.products as Record<string, unknown>;
     const details = await signedDetails(row.details as CustomDetails);
-    return { slug: row.slug, name: 'Your custom shirt', category: 'Custom shirt', collection: 'Custom shirt', price: p.price, image: details.image || '', alternate: details.image || '', images: [details.image || ''], rating: 0, reviews: 0, stock: p.stock, colors: p.colors, sizes: p.sizes, featured: false, newArrival: false, active: true, description: `${details.fabric} · ${details.print}`, customDetails: details } as Product;
+    return { code: 'ZY-CUSTOM', slug: row.slug, name: 'Your custom shirt', category: 'Custom shirt', collection: 'Custom shirt', price: p.price, image: details.image || '', alternate: details.image || '', images: [details.image || ''], rating: 0, reviews: 0, stock: p.stock, colors: p.colors, sizes: p.sizes, featured: false, newArrival: false, active: true, description: `${details.fabric} · ${details.print}`, customDetails: details } as Product;
   }));
 }
 

@@ -62,7 +62,7 @@ export function productSchema(product: Product) {
   return {
     '@context': 'https://schema.org', '@type': 'Product',
     '@id': absoluteUrl(`/products/${product.slug}#product`),
-    name: product.name, description: product.description, sku: product.slug,
+    name: product.name, description: product.description, sku: product.code || product.slug,
     image: [...new Set([product.image, ...(product.images || []), product.alternate].filter(Boolean))].map(absoluteUrl),
     brand: { '@type': 'Brand', name: 'ZYRA' }, category: product.category,
     color: product.colors.join(', '), size: product.sizes,

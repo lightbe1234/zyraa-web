@@ -148,7 +148,7 @@ export function ProductDetail({ product, settings, cart, add, related, ready }: 
       </section>
 
       <section className="pdp-info" aria-label="Product and purchase options">
-        <p className="eyebrow">{product.category}</p>
+        <p className="eyebrow">{product.code ? `${product.code} · ` : ''}{product.category}</p>
         <h1>{product.name}</h1>
         {reviews.length > 0 && <a className="pdp-rating" href="#product-reviews"><Star aria-hidden="true" /> {average.toFixed(1)} <span>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span></a>}
         <div className="pdp-price"><strong>{money(product.price)}</strong>{onSale && <><del><span className="sr-only">Original price </span>{money(product.compareAt!)}</del><span>Save {money(product.compareAt! - product.price)}</span></>}</div>

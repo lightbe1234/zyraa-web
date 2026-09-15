@@ -1,5 +1,6 @@
 export type Product = {
   updatedAt?: string;
+  code?: string;
   customDetails?: import('./custom-shirts').CustomDetails;
   slug: string;
   name: string;
@@ -65,6 +66,7 @@ const images = [
 export const products: Product[] = names.map((name, index) => {
   const price = 199000 + (index % 6) * 45000;
   return {
+    code: `ZY-${String(index + 1).padStart(2, '0')}`,
     slug: name.toLowerCase().replaceAll(' ', '-'),
     name,
     category: categoryNames[index % categoryNames.length],

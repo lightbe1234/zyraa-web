@@ -1,6 +1,8 @@
 import type { Category, Product } from './catalog';
 import type { HomeCollectionCard } from './home-collection-cards';
 import { normalizeHomeContent, type HomeContent } from './home-content';
+import type { Review } from './reviews';
+import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin } from './supabase-server';
 import { isMissingDatabaseObject } from './supabase-errors';
 import { signedDetails } from './custom-shirts-server';
@@ -102,6 +104,7 @@ function productFromRow(row: Record<string, unknown>): Product {
   const storedImages = Array.isArray(row.images) ? row.images.map(String).filter(Boolean) : [];
   const images = storedImages.length ? storedImages : [String(row.image), String(row.alternate)].filter(Boolean);
   return {
+    code: row.code ? String(row.code) : undefined,
     slug: String(row.slug), name: String(row.name), category: String(row.category), collection: String(row.collection),
     updatedAt: String(row.updated_at),
     price: Number(row.price), compareAt: row.compare_at == null ? undefined : Number(row.compare_at), image: String(row.image),
@@ -109,6 +112,57 @@ function productFromRow(row: Record<string, unknown>): Product {
     colors: row.colors as string[], sizes: row.sizes as string[], featured: Boolean(row.featured), newArrival: Boolean(row.new_arrival),
     active: Boolean(row.active), description: String(row.description),
   };
+}
+
+function communityReviewFromRow(row: Record<string, unknown>): Review {
+  const stored = row.metadata as Record<string, unknown>;
+  const elapsed = Math.max(0, Date.now() - new Date(String(row.created_at)).getTime());
+  const days = Math.floor(elapsed / 86_400_000);
+  const dateAgo = days < 1 ? 'Just now' : days < 7 ? `${days}d ago` : days < 30 ? `${Math.floor(days / 7)}w ago` : `${Math.floor(days / 30)}m ago`;
+  return {
+    id: String(row.entity_id),
+    author: String(stored.author),
+    initials: String(stored.initials),
+    verified: Boolean(stored.verified),
+    purchasedSize: String(stored.purchasedSize),
+    productSlug: String(stored.productSlug),
+    productName: String(stored.productName),
+    rating: Number(stored.rating),
+    quote: String(stored.quote),
+    stats: String(stored.stats),
+    fitRating: String(stored.fitRating),
+    dateAgo,
+    helpfulCount: Number(stored.helpfulCount || 0),
+    category: String(stored.category),
+  };
+}
+
+export async function getCommunityReviews() {
+  const { data, error } = await getSupabaseAdmin().from('audit_events').select('entity_id,action,metadata,created_at').eq('entity_type', 'community_review').order('created_at', { ascending: false }).limit(1000);
+  if (error) throw new Error(error.message);
+  const seen = new Set<string>();
+  const active: Review[] = [];
+  for (const row of data || []) {
+    const id = String(row.entity_id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (row.action === 'community_review.published') active.push(communityReviewFromRow(row));
+  }
+  return active;
+}
+
+export async function createCommunityReview(review: Review, actorEmail: string) {
+  const client = getSupabaseAdmin();
+  const id = randomUUID();
+  const saved = { ...review, id, dateAgo: 'Just now', helpfulCount: 0 };
+  const { data, error } = await client.from('audit_events').insert({ actor_email: actorEmail, action: 'community_review.published', entity_type: 'community_review', entity_id: id, metadata: saved }).select('entity_id,action,metadata,created_at').single();
+  if (error) throw new Error(error.message);
+  return communityReviewFromRow(data);
+}
+
+export async function deleteCommunityReview(id: string, actorEmail: string) {
+  const { error } = await getSupabaseAdmin().from('audit_events').insert({ actor_email: actorEmail, action: 'community_review.deleted', entity_type: 'community_review', entity_id: id, metadata: {} });
+  if (error) throw new Error(error.message);
 }
 
 async function orderFromRow(row: Record<string, unknown>): Promise<StoreOrder> {
@@ -129,11 +183,10 @@ async function orderFromRow(row: Record<string, unknown>): Promise<StoreOrder> {
 const orderSelect = '*, order_items(*)';
 
 export async function getCatalog({ includeArchived = false } = {}) {
-  let query = getSupabaseAdmin().from('products').select('*').not('slug', 'like', 'custom-%').order('created_at', { ascending: true });
-  if (!includeArchived) query = query.eq('active', true);
-  const { data, error } = await query;
+  const { data, error } = await getSupabaseAdmin().from('products').select('*').not('slug', 'like', 'custom-%').order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
-  return (data || []).map((row) => productFromRow(row));
+  const catalog = (data || []).map((row, index) => ({ ...productFromRow(row), code: `ZY-${String(index + 1).padStart(2, '0')}` }));
+  return includeArchived ? catalog : catalog.filter((product) => product.active !== false);
 }
 
 export async function saveProduct(product: Product, actorEmail: string, originalSlug?: string) {

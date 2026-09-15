@@ -36,7 +36,7 @@ import {
   type Category,
   type Product,
 } from '@/lib/catalog';
-import { seedReviews, type Review } from '@/lib/reviews';
+import type { Review } from '@/lib/reviews';
 import { addBagSelection, buyNowSelection } from '@/lib/product-purchase';
 import { ProductDetail } from './product-detail';
 import { CustomerHelp } from './customer-help';
@@ -136,6 +136,7 @@ export default function StorefrontApp({
   initialSections,
   initialCollections,
   initialHomeCollectionCards,
+  initialReviews,
 }: {
   path: string;
   initialCatalog?: Product[];
@@ -143,6 +144,7 @@ export default function StorefrontApp({
   initialSections?: ContentSection[];
   initialCollections?: Category[];
   initialHomeCollectionCards?: HomeCollectionCard[];
+  initialReviews?: Review[];
 }) {
   const [cart, setCart] = useState<CartItem[]>([]),
     [catalog, setCatalog] = useState<Product[]>(initialCatalog ?? []),
@@ -156,29 +158,20 @@ export default function StorefrontApp({
     [notice, setNotice] = useState(0),
     [toast, setToast] = useState('');
 
-  const [reviews, setReviews] = useState<Review[]>(seedReviews);
-  useEffect(() => {
-    try { const saved = JSON.parse(localStorage.getItem('zyra-community-reviews') || 'null'); if (Array.isArray(saved)) setReviews(saved); } catch {}
-  }, []);
+  const [reviews, setReviews] = useState<Review[]>(initialReviews ?? []);
 
-  const addReview = (newReview: Review) => {
-    setReviews((prev) => {
-      const updated = [newReview, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('zyra-community-reviews', JSON.stringify(updated));
-      }
-      return updated;
-    });
+  const addReview = async (newReview: Review) => {
+    const response = await fetch('/api/community-reviews', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(newReview) });
+    const saved = await response.json();
+    if (!response.ok) throw new Error(saved.error || 'Review could not be saved.');
+    setReviews((current) => [saved, ...current]);
   };
 
-  const deleteReview = (id: string) => {
-    setReviews((prev) => {
-      const updated = prev.filter((r) => r.id !== id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('zyra-community-reviews', JSON.stringify(updated));
-      }
-      return updated;
-    });
+  const deleteReview = async (id: string) => {
+    const response = await fetch('/api/community-reviews', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Review could not be deleted.');
+    setReviews((current) => current.filter((review) => review.id !== id));
   };
   const [collectionsList, setCollectionsList] = useState<Category[]>(initialCollections ?? []);
   const [storeConfigReady, setStoreConfigReady] = useState(Boolean(initialSettings));
@@ -768,7 +761,7 @@ function ProductCard({ product }: { product: Product }) {
           )}
         </div>
         <div className="product-meta">
-          <p>{product.category}</p>
+          <p>{product.code ? `${product.code} · ` : ''}{product.category}</p>
           <h3><a href={`/products/${product.slug}`}>{product.name}</a></h3>
           <div className="product-card-price">
             <strong>{money(product.price)}</strong>
@@ -834,8 +827,8 @@ function CommunityReviews({
   content = defaultHomeContent,
 }: {
   reviews: Review[];
-  onAddReview: (review: Review) => void;
-  onDeleteReview: (id: string) => void;
+  onAddReview: (review: Review) => Promise<void>;
+  onDeleteReview: (id: string) => Promise<void>;
   isAdmin?: boolean;
   catalog?: Product[];
   content?: HomeContent;
@@ -844,6 +837,8 @@ function CommunityReviews({
   const [helpfulVotes, setHelpfulVotes] = useState<Record<string, number>>({});
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   // Modals
   const [writeModalOpen, setWriteModalOpen] = useState(false);
@@ -916,7 +911,7 @@ function CommunityReviews({
     });
   };
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const initials = adminForm.author
       ? adminForm.author
@@ -942,8 +937,16 @@ function CommunityReviews({
       helpfulCount: 0,
       category: adminForm.category,
     };
-    onAddReview(newRev);
-    setAdminAddModalOpen(false);
+    setReviewBusy(true);
+    setReviewError('');
+    try {
+      await onAddReview(newRev);
+      setAdminAddModalOpen(false);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Review could not be saved.');
+    } finally {
+      setReviewBusy(false);
+    }
   };
 
   return (
@@ -1193,7 +1196,7 @@ function CommunityReviews({
                         <span className="author-name" style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>
                           {rev.author}
                         </span>
-                        {rev.verified && !seedReviews.some((seed) => seed.id === rev.id && seed.quote === rev.quote) && (
+                        {rev.verified && (
                           <span
                             className="verified-badge"
                             style={{
@@ -1241,9 +1244,18 @@ function CommunityReviews({
                           alignItems: 'center',
                           borderRadius: '4px',
                         }}
-                        onClick={() => {
+                        disabled={reviewBusy}
+                        onClick={async () => {
                           if (confirm(`Delete review from ${rev.author}?`)) {
-                            onDeleteReview(rev.id);
+                            setReviewBusy(true);
+                            setReviewError('');
+                            try {
+                              await onDeleteReview(rev.id);
+                            } catch (error) {
+                              setReviewError(error instanceof Error ? error.message : 'Review could not be deleted.');
+                            } finally {
+                              setReviewBusy(false);
+                            }
                           }
                         }}
                       >
@@ -1670,8 +1682,9 @@ function CommunityReviews({
                 />
               </label>
 
-              <button type="submit" className="dark-button full-width">
-                Publish Review to Live Site
+              {reviewError && <p className="form-error">{reviewError}</p>}
+              <button type="submit" className="dark-button full-width" disabled={reviewBusy}>
+                {reviewBusy ? 'Publishing…' : 'Publish Review to Live Site'}
               </button>
             </form>
           </aside>
@@ -1696,8 +1709,8 @@ function Home({
   sections: ContentSection[];
   settings: StoreSettings;
   reviews: Review[];
-  onAddReview: (r: Review) => void;
-  onDeleteReview: (id: string) => void;
+  onAddReview: (r: Review) => Promise<void>;
+  onDeleteReview: (id: string) => Promise<void>;
   isAdmin?: boolean;
   collections?: Category[];
   homeCollectionCards?: HomeCollectionCard[];
@@ -2774,8 +2787,8 @@ function AdminView({
   catalog: Product[];
   onCatalogChange: (products: Product[]) => void;
   reviews: Review[];
-  onAddReview: (review: Review) => void;
-  onDeleteReview: (id: string) => void;
+  onAddReview: (review: Review) => Promise<void>;
+  onDeleteReview: (id: string) => Promise<void>;
   collections: Category[];
   onCollectionsChange: (collections: Category[]) => void;
   homeCollectionCards: HomeCollectionCard[];
@@ -3034,13 +3047,13 @@ function AdminView({
               <b>Inventory</b>
               <b>Actions</b>
             </div>
-            {adminCatalog.filter(p => showRemovedProducts ? p.active === false : p.active !== false).map((p, i) => (
+            {adminCatalog.filter(p => showRemovedProducts ? p.active === false : p.active !== false).map((p) => (
               <div key={p.slug}>
                 <span>
                   <img src={p.image} alt="" />
                   <b>{p.name}</b>
                 </span>
-                <code>ZY-{String(i + 1).padStart(3, '0')}</code>
+                <code>{p.code || `ZY-${String(adminCatalog.findIndex((item) => item.slug === p.slug) + 1).padStart(2, '0')}`}</code>
                 <span className="status">
                   {p.active === false ? 'Archived' : p.stock === 0 ? 'Sold out' : 'Active'}
                 </span>

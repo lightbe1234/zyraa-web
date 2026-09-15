@@ -24,6 +24,7 @@ function validateProduct(value: Partial<Product>): Product {
   if (images.some((image) => !safeWebUrl(image))) throw new Error('One of the product image URLs is invalid.');
   return {
     updatedAt: value.updatedAt,
+    code: value.code,
     active: value.active !== false,
     slug: value.slug!,
     name: value.name!,
