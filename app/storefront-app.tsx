@@ -102,7 +102,7 @@ const defaultStoreSettings: StoreSettings = {
   heroEyebrow: 'ZYRA / DROP 01',
   heroHeading: 'BREAK\nTHE\nPATTERN',
   heroCtaLabel: 'Shop the drop',
-  heroCtaHref: '/collections/after-hours',
+  heroCtaHref: '/collections',
   homeContent: defaultHomeContent,
 };
 function useCountdown() {

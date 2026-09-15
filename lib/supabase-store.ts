@@ -278,7 +278,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     heroEyebrow: data.hero_eyebrow || 'ZYRA / DROP 01',
     heroHeading: data.hero_heading || 'BREAK\nTHE\nPATTERN',
     heroCtaLabel: data.hero_cta_label || 'Shop the drop',
-    heroCtaHref: data.hero_cta_href || '/collections/after-hours',
+    heroCtaHref: data.hero_cta_href || '/collections',
     homeContent: normalizeHomeContent(data.home_content),
   };
 }
